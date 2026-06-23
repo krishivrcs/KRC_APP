@@ -89,6 +89,12 @@ const cfg = {
   get eleven(){ return localStorage.krcEleven === '1'; },
   set eleven(v){ localStorage.krcEleven = v ? '1':'0'; },
 };
+// One-scan setup: a QR link like ?token=XXX&url=YYY auto-fills config, then cleans the URL bar.
+(function(){ try{ const q=new URLSearchParams(location.search);
+  if(q.get('token')) cfg.token=q.get('token');
+  if(q.get('url'))   cfg.url=q.get('url');
+  if(q.has('token')||q.has('url')) history.replaceState({}, '', location.pathname);
+}catch(e){} })();
 let view='home', voiceOn=false;
 const chat=[];
 const KIND_TITLE={tasks:'Tasks',notes:'Notes',reminders:'Reminders',goals:'Goals'};
