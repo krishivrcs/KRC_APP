@@ -2,8 +2,6 @@
   "name": "KRC Companion",
   "short_name": "KRC",
   "description": "Your KRC second brain — chat, tasks, notes, reminders, on any device.",
-  "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
   "background_color": "#04070c",
   "theme_color": "#04070c",
