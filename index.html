@@ -289,6 +289,23 @@ async function testPush(){ try{ const r=await api('/api/push/test');
   pushStatus(r.sent? ('Sent — check your notifications ('+r.sent+' device'+(r.sent>1?'s':'')+').') : 'No subscribed devices yet — tap “Enable” first.');
 }catch(e){ pushStatus('⚠ '+e.message); } }
 
+// ---------- cross-device settings sync (one setting applies to the whole KRC ecosystem) ----------
+async function syncSettingsDown(){
+  if(!cfg.token) return;
+  try{ const d=await api('/api/settings'); const s=d.settings||{};
+    if('speak' in s) cfg.speak=!!s.speak;
+    if('eleven' in s) cfg.eleven=!!s.eleven;
+    if(s.voice) localStorage.krcVoice=s.voice;
+    if(view==='settings') renderSettings();
+  }catch(e){}
+}
+async function syncSettingsUp(){
+  if(!cfg.token) return;
+  try{ await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{
+    speak:cfg.speak, eleven:cfg.eleven, voice:localStorage.krcVoice||''
+  }})}); }catch(e){}
+}
+
 // ---------- lists ----------
 async function renderList(kind){
   const single=kind.replace(/s$/,'');
@@ -344,7 +361,7 @@ function renderSettings(){
   })();
   $('#voiceTest').onclick=()=>{ localStorage.krcVoice=$('#sVoice').value; cfg.eleven=$('#sEleven').checked; speak("Good evening. I am KRC, your companion. All systems are online."); };
   $('#pushOn').onclick=enablePush; $('#pushTest').onclick=testPush;
-  $('#saveBtn').onclick=()=>{ cfg.url=$('#sUrl').value.trim(); cfg.token=$('#sTok').value.trim(); cfg.speak=$('#sSpeak').checked; cfg.eleven=$('#sEleven').checked; localStorage.krcVoice=$('#sVoice').value; $('#sStatus').textContent='Saved ✓'; };
+  $('#saveBtn').onclick=()=>{ cfg.url=$('#sUrl').value.trim(); cfg.token=$('#sTok').value.trim(); cfg.speak=$('#sSpeak').checked; cfg.eleven=$('#sEleven').checked; localStorage.krcVoice=$('#sVoice').value; $('#sStatus').textContent='Saved ✓ · syncing to all devices…'; syncSettingsUp().then(()=>{ $('#sStatus').textContent='Saved ✓ · synced to all your devices'; }); };
 }
 
 // ---------- wire ----------
@@ -352,7 +369,7 @@ document.querySelectorAll('#nav button').forEach(b=> b.onclick=()=>show(b.datase
 $('#sendBtn').onclick=send; $('#micBtn').onclick=startVoice;
 $('#chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
 show(cfg.token?'home':'settings');
-if(cfg.token) api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false));
+if(cfg.token){ api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false)); syncSettingsDown(); }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
