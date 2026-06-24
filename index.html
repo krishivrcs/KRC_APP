@@ -258,8 +258,11 @@ async function enablePush(){
     if(!v.enabled||!v.publicKey){ pushStatus('Server push isn’t configured yet (VAPID keys).'); return; }
     let sub=await reg.pushManager.getSubscription();
     if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(v.publicKey)});
-    await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:sub})});
-    localStorage.krcPush='1'; pushStatus('✓ Notifications on for this device. KRC will ping you with briefs & insights.');
+    const j=(sub&&sub.toJSON)?sub.toJSON():sub;   // iOS: serialize explicitly (endpoint+keys)
+    if(!j||!j.endpoint){ pushStatus('⚠ Couldn’t read the subscription from this device. On iPhone make sure you opened KRC from the Home Screen (not Safari).'); return; }
+    const res=await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:j})});
+    if(res&&res.ok){ localStorage.krcPush='1'; pushStatus('✓ Notifications on ('+res.subs+' device'+(res.subs==1?'':'s')+'). KRC will ping you with briefs & insights.'); }
+    else pushStatus('⚠ Saved on device but server didn’t store it (endpoint:'+(res&&res.got_endpoint)+' keys:'+(res&&res.got_keys)+' subs:'+(res&&res.subs)+'). Tell Claude this line.');
   }catch(e){ pushStatus('⚠ '+e.message); }
 }
 async function testPush(){ try{ const r=await api('/api/push/test');
