@@ -257,7 +257,8 @@ async function enablePush(){
     const v=await api('/api/push/vapid');
     if(!v.enabled||!v.publicKey){ pushStatus('Server push isn’t configured yet (VAPID keys).'); return; }
     let sub=await reg.pushManager.getSubscription();
-    if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(v.publicKey)});
+    if(sub){ try{ await sub.unsubscribe(); }catch(_){} }   // drop any stale/wrong-key sub, then resubscribe fresh
+    sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(v.publicKey)});
     const j=(sub&&sub.toJSON)?sub.toJSON():sub;   // iOS: serialize explicitly (endpoint+keys)
     if(!j||!j.endpoint){ pushStatus('⚠ Couldn’t read the subscription from this device. On iPhone make sure you opened KRC from the Home Screen (not Safari).'); return; }
     const res=await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:j})});
