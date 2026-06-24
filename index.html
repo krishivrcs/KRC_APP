@@ -129,8 +129,10 @@ async function renderHome(){
       <button onclick="brainAsk('insight')">💡 Opportunity</button>
       <button onclick="brainAsk('predict')">🔮 What's next</button>
       <button onclick="brainAsk('forgot')">🧠 Forgetting?</button>
+      <button onclick="loadMemMap()">🗺 What KRC knows</button>
     </div>
-    <div class="msg krc" id="brainCard" style="max-width:100%;margin-top:10px;display:none"></div>`;
+    <div class="msg krc" id="brainCard" style="max-width:100%;margin-top:10px;display:none"></div>
+    <div id="memMap"></div>`;
   if (!cfg.token){ $('#hi').textContent='Add your token in Setup to begin.'; return; }
   $('#qBtn').onclick = async ()=>{ if(await createItem('tasks', $('#qAdd').value)){ $('#qAdd').value=''; } };
   $('#qAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#qBtn').click(); });
@@ -155,6 +157,23 @@ async function brainAsk(kind){
     else if(kind==='forgot') text=(await api('/krc',{method:'POST',body:JSON.stringify({message:"What am I forgetting? Use my notes, tasks and goals and be specific."})})).reply;
     text=text||'(nothing to surface yet)'; card.textContent=text; kspeak(text); setDot(true);
   }catch(e){ card.textContent='⚠ '+e.message; setDot(false); }
+}
+const MEMOJI={project:'🛠',goal:'✦',person:'👤',place:'📍',topic:'🏷',task:'✓',event:'📅',thing:'📦',series:'📺',team:'👥',company:'🏢'};
+async function loadMemMap(){
+  const box=$('#memMap'); if(!box) return;
+  if(box.dataset.open==='1'){ box.innerHTML=''; box.dataset.open='0'; return; }   // toggle off
+  box.dataset.open='1'; box.innerHTML='<div class="empty">loading your world…</div>';
+  try{ const d=await api('/api/memory/graph'); const ents=d.entities||[]; setDot(true);
+    if(!ents.length){ box.innerHTML='<div class="empty">KRC is still learning about you.</div>'; return; }
+    const g={}; ents.forEach(e=>{ (g[e.etype]=g[e.etype]||[]).push(e); });
+    let h='<h2 style="margin-top:18px">What KRC knows about you ('+ents.length+')</h2>';
+    Object.keys(g).sort().forEach(k=>{
+      h+='<div style="margin:12px 0 2px;color:var(--cyan);font-size:12px;letter-spacing:.08em">'+(MEMOJI[k]||'•')+' '+k.toUpperCase()+' · '+g[k].length+'</div>';
+      g[k].forEach(e=>{ h+='<div class="row" style="padding:8px 6px"><div class="t">'+escapeHtml(e.title)+
+        (e.content?'<div style="color:var(--dim);font-size:12px">'+escapeHtml(e.content)+'</div>':'')+'</div></div>'; });
+    });
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div class="empty">⚠ '+e.message+'</div>'; box.dataset.open='0'; }
 }
 
 // ---------- Chat + live face ----------
