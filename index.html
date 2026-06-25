@@ -103,6 +103,40 @@ window.addEventListener('load',()=>{ try{
   const f=new URLSearchParams(location.search).get('krcfile');
   if(f) setTimeout(()=>showFile('/api/pc/file/last',decodeURIComponent(f)),300);
 }catch(e){} });
+// ---------- install as a real app (PWA) ----------
+let _deferredInstall=null;
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); _deferredInstall=e; maybeInstallBanner(); });
+window.addEventListener('appinstalled',()=>{ _deferredInstall=null; const b=$('#installBanner'); if(b) b.remove(); });
+async function installApp(){
+  if(_deferredInstall){ _deferredInstall.prompt(); try{ await _deferredInstall.userChoice; }catch(e){}
+    _deferredInstall=null; const b=$('#installBanner'); if(b) b.remove(); return true; }
+  return false;   // iOS / already-installable-via-menu: caller shows the hint
+}
+function installHint(){
+  if(isStandalone()) return 'KRC is installed ✓';
+  if(isIOS()) return 'On iPhone: tap the Share button (the box with ↑) in Safari, then “Add to Home Screen”.';
+  return 'Open your browser menu (⋮) and choose “Install app” / “Add to Home screen”.';
+}
+function maybeInstallBanner(){
+  if(isStandalone()||$('#installBanner')||localStorage.krcInstallDismiss==='1') return;
+  if(!_deferredInstall&&!isIOS()) return;
+  const b=document.createElement('div'); b.id='installBanner';
+  b.style.cssText='position:fixed;left:10px;right:10px;bottom:72px;z-index:60;background:#0c1726;'+
+    'border:1px solid #1d3346;border-radius:12px;padding:10px 12px;display:flex;align-items:center;'+
+    'gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.45)';
+  b.innerHTML='<span style="font-size:20px">📲</span>'+
+    '<span style="flex:1;font-size:13px;color:#bcd">Install KRC as an app</span>';
+  const go=document.createElement('button'); go.textContent=_deferredInstall?'Install':'How';
+  go.style.cssText='background:#1f6feb;color:#fff;border:0;border-radius:8px;padding:7px 13px;font-weight:600';
+  go.onclick=async()=>{ if(!(await installApp())) alert(installHint()); };
+  const x=document.createElement('button'); x.textContent='✕';
+  x.style.cssText='background:transparent;color:#789;border:0;font-size:16px;cursor:pointer';
+  x.onclick=()=>{ localStorage.krcInstallDismiss='1'; b.remove(); };
+  b.appendChild(go); b.appendChild(x); document.body.appendChild(b);
+}
+window.addEventListener('load',()=> setTimeout(maybeInstallBanner,1200));
 let view='home', voiceOn=false;
 const chat=[];
 const KIND_TITLE={tasks:'Tasks',notes:'Notes',reminders:'Reminders',goals:'Goals'};
@@ -411,6 +445,9 @@ function renderSettings(){
       <button class="btn ghost" id="pushTest" style="margin:0;flex:1">Send test</button>
     </div>
     <div class="status" id="pushStatus" style="margin-top:8px">KRC can ping your phone with briefs &amp; insights even when the app is closed. iPhone: install to Home Screen first (iOS 16.4+).</div>
+    <h2 style="margin-top:24px">Install</h2>
+    <button class="btn ghost" id="installBtn" style="margin:0">📲 Install KRC as an app</button>
+    <div class="status" id="installStatus" style="margin-top:8px"></div>
     <button class="btn" id="saveBtn">Save</button>
     <div class="status" id="sStatus"></div>
     <div class="status" style="margin-top:20px;color:#33586a">KRC companion · free & synced with your robot + desktop. Token stored only on this device.</div>`;
@@ -421,6 +458,10 @@ function renderSettings(){
   })();
   $('#voiceTest').onclick=()=>{ localStorage.krcVoice=$('#sVoice').value; cfg.eleven=$('#sEleven').checked; speak("Good evening. I am KRC, your companion. All systems are online."); };
   $('#pushOn').onclick=enablePush; $('#pushTest').onclick=testPush;
+  const ib=$('#installBtn');
+  if(ib){ $('#installStatus').textContent=installHint();
+    ib.onclick=async()=>{ if(await installApp()) $('#installStatus').textContent='Installing…';
+                          else $('#installStatus').textContent=installHint(); }; }
   $('#saveBtn').onclick=()=>{ cfg.url=$('#sUrl').value.trim(); cfg.token=$('#sTok').value.trim(); cfg.speak=$('#sSpeak').checked; cfg.eleven=$('#sEleven').checked; localStorage.krcVoice=$('#sVoice').value; $('#sStatus').textContent='Saved ✓ · syncing to all devices…'; syncSettingsUp().then(()=>{ $('#sStatus').textContent='Saved ✓ · synced to all your devices'; }); };
 }
 
