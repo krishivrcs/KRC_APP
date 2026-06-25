@@ -97,6 +97,12 @@ const cfg = {
   if(q.get('token')) cfg.token=q.get('token');
   if(q.get('url'))   cfg.url=q.get('url');
 }catch(e){} })();
+// If launched/focused from a "📎 File ready" notification (url carries ?krcfile=NAME),
+// surface the download card automatically once the page is ready.
+window.addEventListener('load',()=>{ try{
+  const f=new URLSearchParams(location.search).get('krcfile');
+  if(f) setTimeout(()=>showFile('/api/pc/file/last',decodeURIComponent(f)),300);
+}catch(e){} });
 let view='home', voiceOn=false;
 const chat=[];
 const KIND_TITLE={tasks:'Tasks',notes:'Notes',reminders:'Reminders',goals:'Goals'};
@@ -211,23 +217,41 @@ async function showShot(path){
     d.appendChild(img); main.appendChild(d); main.scrollTop=main.scrollHeight;
   }catch(e){}
 }
-// A PC file KRC fetched: show a tap-to-download card (fetched with the token header,
-// then saved via a blob so it works on phone/tablet/PC, even on the protected endpoint).
+// A PC file KRC fetched: a tap-to-save card. On phones a plain <a download> does
+// nothing (iOS ignores it, PWAs block the navigation), so we use the native Share
+// sheet first (→ Save to Files / send anywhere), then fall back for desktop.
 async function showFile(path,name){
   const d=document.createElement('div'); d.className='msg krc';
   d.style.cssText='cursor:pointer;display:flex;align-items:center;gap:8px';
-  d.innerHTML='📎 <b>'+name+'</b> <span style="opacity:.6">— tap to download</span>';
+  d.innerHTML='📎 <b>'+name+'</b> <span style="opacity:.6">— tap to save</span>';
+  const setS=s=>{ const sp=d.querySelector('span'); if(sp) sp.textContent='— '+s; };
   d.onclick=async()=>{
-    d.querySelector('span').textContent='— downloading…';
+    setS('fetching…');
+    let blob;
     try{
       const r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});
-      if(!r.ok){ d.querySelector('span').textContent='— failed'; return; }
-      const url=URL.createObjectURL(await r.blob());
+      if(!r.ok){ setS('failed ('+r.status+')'); return; }
+      blob=await r.blob();
+    }catch(e){ setS('failed — check connection'); return; }
+    // 1) Native share sheet — the reliable save path on phone/tablet.
+    try{
+      const file=new File([blob],name,{type:blob.type||'application/octet-stream'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:name});
+        setS('saved ✓'); return;
+      }
+    }catch(e){ if(e&&e.name==='AbortError'){ setS('tap to save'); return; } }
+    // 2) Desktop: real download via blob link.
+    try{
+      const url=URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download=name;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
-      d.querySelector('span').textContent='— saved ✓';
-    }catch(e){ d.querySelector('span').textContent='— failed'; }
+      setS('saved ✓'); return;
+    }catch(e){}
+    // 3) Last resort: just open it so the user can save manually.
+    try{ window.open(URL.createObjectURL(blob),'_blank'); setS('opened'); }
+    catch(e){ setS('failed'); }
   };
   main.appendChild(d); main.scrollTop=main.scrollHeight;
 }
