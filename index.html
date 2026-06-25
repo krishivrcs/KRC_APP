@@ -193,6 +193,7 @@ async function send(){
     const reply=d.reply||'(no reply)'; addMsg('krc',reply); setDot(true); setFaceEmo(d.emotion||'idle');
     if(voiceOn||cfg.speak) speak(reply);
     if(d.shot) showShot(d.shot);          // KRC controlled the PC and returned a screenshot
+    if(d.file) showFile(d.file,d.file_name||'file');   // KRC fetched a PC file to download
   }catch(e){ addMsg('krc','⚠ '+e.message+' — check Setup / connection.'); setDot(false); }
   voiceOn=false;
 }
@@ -209,6 +210,26 @@ async function showShot(path){
     img.onclick=()=>window.open(url,'_blank');
     d.appendChild(img); main.appendChild(d); main.scrollTop=main.scrollHeight;
   }catch(e){}
+}
+// A PC file KRC fetched: show a tap-to-download card (fetched with the token header,
+// then saved via a blob so it works on phone/tablet/PC, even on the protected endpoint).
+async function showFile(path,name){
+  const d=document.createElement('div'); d.className='msg krc';
+  d.style.cssText='cursor:pointer;display:flex;align-items:center;gap:8px';
+  d.innerHTML='📎 <b>'+name+'</b> <span style="opacity:.6">— tap to download</span>';
+  d.onclick=async()=>{
+    d.querySelector('span').textContent='— downloading…';
+    try{
+      const r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});
+      if(!r.ok){ d.querySelector('span').textContent='— failed'; return; }
+      const url=URL.createObjectURL(await r.blob());
+      const a=document.createElement('a'); a.href=url; a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+      d.querySelector('span').textContent='— saved ✓';
+    }catch(e){ d.querySelector('span').textContent='— failed'; }
+  };
+  main.appendChild(d); main.scrollTop=main.scrollHeight;
 }
 function startVoice(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
