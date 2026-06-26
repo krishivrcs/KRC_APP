@@ -234,6 +234,8 @@ async function renderHome(){
   main.innerHTML = `<h2>Home</h2>
     <div id="hi" class="msg krc" style="max-width:100%">Hi! I'm KRC.</div>
     <div class="addbar"><input id="qAdd" class="f" placeholder="Quick-add a task…"/><button class="add" id="qBtn">+</button></div>
+    <h2 style="margin-top:20px">Today</h2>
+    <div class="card" id="agenda"><div class="empty" style="padding:10px 0">loading…</div></div>
     <h2 style="margin-top:22px">Focus</h2>
     <div class="card" style="text-align:center">
       <div id="pomoTime" style="font-size:46px;font-weight:800;letter-spacing:.02em">25:00</div>
@@ -257,6 +259,7 @@ async function renderHome(){
   if (!cfg.token){ $('#hi').textContent='Add your token in Setup to begin.'; return; }
   $('#qBtn').onclick = async ()=>{ if(await createItem('tasks', $('#qAdd').value)){ $('#qAdd').value=''; } };
   $('#qAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#qBtn').click(); });
+  loadAgenda();
   try{ const h=await api('/api/health'); const r=h.relationship||{};
     const greet=`Hi ${r.user||'there'}! We're on a ${r.streak_days||0}-day streak (${r.interactions||0} chats). What can I help with?`;
     $('#hi').textContent=greet; setDot(true);
@@ -266,6 +269,25 @@ async function renderHome(){
     if(!window._greeted){ window._greeted=true; if(!autoBrief) kspeak(greet); }
     if(autoBrief){ localStorage.krcBriefDay=today; brainAsk('brief'); }
   }catch(e){ setDot(false); }
+}
+// Today's agenda — combines today's reminders, open tasks, and today's goals into one card.
+async function loadAgenda(){
+  const box=$('#agenda'); if(!box) return;
+  try{
+    const [tk,rm,gl]=await Promise.all([api('/api/list/tasks'),api('/api/list/reminders'),api('/api/list/goals')]);
+    const today=new Date().toDateString();
+    const tasks=(tk.rows||[]).filter(x=>!x.done);
+    const rems=(rm.rows||[]).filter(x=>!x.done&&x.due).sort((a,b)=>a.due-b.due)
+                            .filter(x=>new Date(x.due*1000).toDateString()===today);
+    const goals=(gl.rows||[]).filter(x=>!x.done);
+    const hd=t=>`<div style="margin:4px 0 5px;color:var(--dim);font-size:11px;letter-spacing:.1em">${t}</div>`;
+    let h='';
+    if(rems.length) h+=hd('⏰ DUE TODAY')+rems.slice(0,6).map(x=>
+      `<div style="display:flex;gap:9px;padding:5px 0;align-items:baseline"><span style="color:var(--accent);font-size:13px;min-width:62px">${new Date(x.due*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>${escapeHtml(x.text)}</span></div>`).join('');
+    if(tasks.length) h+=hd('✓ TASKS')+tasks.slice(0,6).map(x=>`<div style="padding:5px 0">• ${escapeHtml(x.text)}</div>`).join('');
+    if(goals.length) h+=hd('✦ GOALS')+goals.slice(0,4).map(x=>`<div style="padding:5px 0">• ${escapeHtml(x.text)}</div>`).join('');
+    box.innerHTML = h || '<div class="empty" style="padding:10px 0">Nothing scheduled — enjoy the calm.</div>';
+  }catch(e){ box.innerHTML='<div class="empty" style="padding:10px 0">⚠ couldn\'t load agenda</div>'; }
 }
 async function brainAsk(kind){
   const card=$('#brainCard'); if(!card) return; card.style.display='block'; card.textContent='thinking…';
