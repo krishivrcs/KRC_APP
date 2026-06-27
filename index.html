@@ -167,7 +167,7 @@ function maybeInstallBanner(){
 }
 window.addEventListener('load',()=> setTimeout(maybeInstallBanner,1200));
 let view='home', voiceOn=false;
-const chat=[];
+let chat; try{ chat=JSON.parse(localStorage.krcChat||'[]'); }catch(_){ chat=[]; }   // CONT-01: persist chat
 const KIND_TITLE={tasks:'Tasks',notes:'Notes',reminders:'Reminders',goals:'Goals'};
 function kspeak(t){ if(cfg.speak && t) speak(t); }
 function setDot(on){ dot.classList.toggle('on', !!on); }
@@ -331,7 +331,8 @@ function renderChat(){
   chat.forEach(m=>{ const d=document.createElement('div'); d.className='msg '+m.who; d.textContent=m.text; main.appendChild(d); });
   main.scrollTop=main.scrollHeight;
 }
-function addMsg(who,text){ chat.push({who,text}); if(view==='chat') renderChat(); }
+function saveChat(){ try{ localStorage.krcChat=JSON.stringify(chat.slice(-50)); }catch(_){} }   // CONT-03: cap 50
+function addMsg(who,text){ chat.push({who,text}); chat=chat.slice(-50); if(view==='chat') renderChat(); saveChat(); }
 async function send(){
   const inp=$('#chatInput'); const msg=(inp.value||'').trim(); if(!msg) return;
   addMsg('you',msg); inp.value=''; inp.focus();
@@ -342,6 +343,21 @@ async function send(){
     if(d.file) showFile(d.file,d.file_name||'file');   // KRC fetched a PC file to download
   }catch(e){ addMsg('krc','⚠ '+e.message+' — check Setup / connection.'); setDot(false); }
   voiceOn=false;
+}
+// CONT-02: on startup, pull the shared cloud conversation (robot + other sessions) and
+// merge it into the local chat — de-duped by who+text, capped at 50. Offline/unreachable
+// cloud is swallowed silently so local localStorage history still shows.
+async function hydrateFromCloud(){
+  if(!cfg.token) return;
+  try{
+    const d=await api('/api/messages/recent?limit=30');
+    if(!d||!d.ok||!d.messages||!d.messages.length) return;
+    const seen=new Set(d.messages.map(m=>m.who+'|'+m.text));
+    const localOnly=chat.filter(m=>!seen.has(m.who+'|'+m.text));
+    chat=[...d.messages, ...localOnly].slice(-50);
+    saveChat();
+    if(view==='chat') renderChat();
+  }catch(_){}
 }
 // Show a PC screenshot (or any image the cloud serves) inline in chat. Fetched with
 // the token header (so it works on the protected endpoint), then shown as a blob.
@@ -685,6 +701,7 @@ $('#sendBtn').onclick=send; $('#micBtn').onclick=startVoice;
 $('#chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
 show(cfg.token?'home':'settings');
 if(cfg.token){ api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false)); syncSettingsDown(); }
+if(cfg.token){ hydrateFromCloud(); }    // CONT-02: merge cloud history on startup
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
