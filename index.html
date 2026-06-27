@@ -127,8 +127,10 @@ const cfg = {
 // If launched/focused from a "📎 File ready" notification (url carries ?krcfile=NAME),
 // surface the download card automatically once the page is ready.
 window.addEventListener('load',()=>{ try{
-  const f=new URLSearchParams(location.search).get('krcfile');
+  const q=new URLSearchParams(location.search);
+  const f=q.get('krcfile');
   if(f) setTimeout(()=>showFile('/api/pc/file/last',decodeURIComponent(f)),300);
+  if(q.get('krcshot')) setTimeout(()=>viewPCScreen(),300);   // tapped the screenshot push
 }catch(e){} });
 // ---------- install as a real app (PWA) ----------
 let _deferredInstall=null;
@@ -252,6 +254,7 @@ async function renderHome(){
       <button onclick="brainAsk('predict')">🔮 What's next</button>
       <button onclick="brainAsk('forgot')">🧠 Forgetting?</button>
       <button onclick="loadMemMap()">🗺 What KRC knows</button>
+      <button onclick="viewPCScreen()">📷 PC screen</button>
     </div>
     <div class="msg krc" id="brainCard" style="max-width:100%;margin-top:10px;display:none"></div>
     <div id="memMap"></div>`;
@@ -347,20 +350,32 @@ async function showShot(path){
     // The screenshot can land on the cloud a moment after the reply text, so retry
     // a few times on 404 rather than giving up (fixes "says done but no image").
     let r=null;
-    for(let i=0;i<5;i++){
+    for(let i=0;i<6;i++){
       r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});
       if(r.ok) break;
-      if(r.status!==404) return;
+      if(r.status!==404) return false;
       await new Promise(res=>setTimeout(res,1500));
     }
-    if(!r||!r.ok) return;
+    if(!r||!r.ok) return false;
     const url=URL.createObjectURL(await r.blob());
     const d=document.createElement('div'); d.className='msg krc'; d.style.maxWidth='100%';
     const img=document.createElement('img'); img.src=url;
     img.style.cssText='width:100%;border-radius:10px;display:block;cursor:zoom-in';
     img.onclick=()=>window.open(url,'_blank');
     d.appendChild(img); main.appendChild(d); main.scrollTop=main.scrollHeight;
-  }catch(e){}
+    return true;
+  }catch(e){ return false; }
+}
+// Pull the latest PC screenshot on demand (push tap OR the Home "PC screen" button),
+// so a screenshot you asked the ROBOT for by voice still reaches your phone.
+async function viewPCScreen(){
+  try{ show('chat'); }catch(e){}
+  const note=document.createElement('div'); note.className='msg krc';
+  note.textContent='Fetching your PC screen…';
+  main.appendChild(note); main.scrollTop=main.scrollHeight;
+  const ok=await showShot('/api/pc/shot/last');
+  note.textContent=ok?'Here’s your PC screen:'
+    :'No recent PC screenshot yet — ask KRC (or the robot) to “take a screenshot” first.';
 }
 // A PC file KRC fetched: a tap-to-save card. On phones a plain <a download> does
 // nothing (iOS ignores it, PWAs block the navigation), so we use the native Share
