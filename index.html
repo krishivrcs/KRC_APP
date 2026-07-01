@@ -363,6 +363,7 @@ const KIND_TITLE={tasks:'Tasks',notes:'Notes',reminders:'Reminders',goals:'Goals
 
 function show(v){
   if(view==='see'&&v!=='see'){try{seeStopCam();}catch(e){}}
+  if(view==='gest'&&v!=='gest'){try{gestStop();}catch(e){}}
   view=v;
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   $('#app').classList.toggle('chatview',v==='chat');
@@ -372,6 +373,7 @@ function show(v){
   else if(v==='meet')renderMeet();
   else if(v==='pc')renderPC();
   else if(v==='see')renderSee();
+  else if(v==='gest')renderGest();
   else if(v==='lists')renderLists();
   else if(v==='brain')renderBrain();
   else if(v==='profile')renderProfile();
@@ -408,6 +410,7 @@ async function renderHome(){
       <button class="chip" onclick="show('meet')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 16v4"/></svg></span>Meeting minutes</button>
       <button class="chip" onclick="show('pc')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>Control PC</button>
       <button class="chip" onclick="show('see')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>KRC’s eyes</button>
+      <button class="chip" onclick="show('gest')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 8V6a2 2 0 0 0-4 0v8a6 6 0 0 0 12 0v-3"/></svg></span>Gestures</button>
       <button class="chip" onclick="show('brain')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg></span>Daily brief</button>
       <button class="chip" onclick="listKind='reminders';show('lists')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
     </div>`;
@@ -705,6 +708,87 @@ async function seeDescribe(robot){
     out.innerHTML='<div class="msg krc" style="max-width:100%">'+escapeHtml(reply)+'</div>';
     kspeak(reply);
   }catch(e){out.innerHTML='<div class="msg krc" style="max-width:100%">⚠ '+e.message+' — check your connection.</div>';setDot(false);}
+}
+
+/* ---------- HAND GESTURES (on-device MediaPipe) ---------- */
+const GEST={rec:null,stream:null,running:false,raf:null,last:'',lastAt:0,reactAt:0};
+const GEST_MAP={
+  Thumb_Up:{e:'👍',say:['Aw, thanks!','Glad you like it!','Yay!']},
+  Thumb_Down:{e:'👎',say:["Noted — I'll do better.","Aw, okay."]},
+  Open_Palm:{e:'✋',say:['Okay, stopping.','Got it — pausing.'],stop:true},
+  Victory:{e:'✌️',say:['Peace!','Nice one!']},
+  Pointing_Up:{e:'☝️',say:['Yes?','I’m listening.']},
+  Closed_Fist:{e:'✊',say:["Let’s do it!",'Ready when you are.']},
+  ILoveYou:{e:'🤟',say:['Aww, I love you too!','You’re the best.']},
+};
+function renderGest(){
+  const main=$('#main');
+  main.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin:2px 0 4px">
+      <button class="pill-btn" onclick="show('home')" style="padding:8px 14px">‹ Back</button>
+      <h1 style="margin:0;font-size:24px">Gestures</h1>
+    </div>
+    <p style="color:var(--dim);margin:2px 2px 10px">Wave a hand at the camera and KRC reacts — all on‑device, free. (Works on KRC Desk or your phone; the Nano has no camera.)</p>
+    <div class="card" style="padding:10px">
+      <div style="position:relative;border-radius:14px;overflow:hidden;background:#05070f;aspect-ratio:4/3">
+        <video id="gestVid" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)"></video>
+        <div id="gestNow" style="position:absolute;right:10px;bottom:10px;text-align:center;background:rgba(10,12,26,.6);border-radius:14px;padding:8px 12px;backdrop-filter:blur(6px);font-weight:700;font-size:13px"><div style="font-size:46px;opacity:.35">✋</div><div style="color:var(--faint)">show a gesture…</div></div>
+      </div>
+      <button class="pill-btn primary" id="gestToggle" style="width:100%;margin-top:10px">▶ Start</button>
+      <div class="focus-lbl" id="gestState" style="margin-top:8px">Ready</div>
+    </div>
+    <h2 class="sec">KRC knows these</h2>
+    <div class="chips">${Object.entries(GEST_MAP).map(([k,v])=>`<div class="chip" style="cursor:default">${v.e} ${k.replace(/_/g,' ')}</div>`).join('')}</div>
+    <div id="gestLog" style="margin-top:12px"></div>`;
+  $('#gestToggle').onclick=()=>{GEST.running?gestStop():gestStart();};
+}
+async function gestLoad(){
+  if(GEST.rec)return GEST.rec;
+  const V=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+  const fs=await V.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  GEST.rec=await V.GestureRecognizer.createFromOptions(fs,{
+    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'},
+    runningMode:'VIDEO',numHands:1});
+  return GEST.rec;
+}
+async function gestStart(){
+  const st=$('#gestState');
+  if(st)st.textContent='Loading gesture engine… (first time downloads once)';
+  try{await gestLoad();}catch(e){if(st)st.textContent='⚠ Couldn’t load the gesture engine (needs internet the first time). '+(e.message||'');return;}
+  try{GEST.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});}catch(e){if(st)st.textContent='Allow camera access to use gestures.';return;}
+  const v=$('#gestVid');if(v){v.srcObject=GEST.stream;try{await v.play();}catch(e){}}
+  GEST.running=true;const b=$('#gestToggle');if(b)b.textContent='⏹ Stop';
+  if(st)st.textContent='Watching your hand — try 👍 ✋ ✌️';
+  gestTick();
+}
+function gestStop(){
+  GEST.running=false;if(GEST.raf)cancelAnimationFrame(GEST.raf);GEST.raf=null;
+  if(GEST.stream){GEST.stream.getTracks().forEach(t=>t.stop());GEST.stream=null;}
+  const v=$('#gestVid');if(v)v.srcObject=null;const b=$('#gestToggle');if(b)b.textContent='▶ Start';
+  const st=$('#gestState');if(st)st.textContent='Stopped';GEST.last='';
+}
+function gestTick(){
+  if(!GEST.running){return;}
+  const v=$('#gestVid');
+  if(v&&v.videoWidth&&GEST.rec){
+    let res=null;try{res=GEST.rec.recognizeForVideo(v,performance.now());}catch(e){}
+    const g=res&&res.gestures&&res.gestures[0]&&res.gestures[0][0];
+    gestHandle(g?g.categoryName:'None',g?g.score:0);
+  }
+  GEST.raf=requestAnimationFrame(gestTick);
+}
+function gestHandle(name,score){
+  const m=GEST_MAP[name];const now=performance.now();const disp=$('#gestNow');
+  if(disp)disp.innerHTML=(m&&score>=0.5)?`<div style="font-size:46px">${m.e}</div><div>${name.replace(/_/g,' ')}</div>`:`<div style="font-size:46px;opacity:.35">✋</div><div style="color:var(--faint)">show a gesture…</div>`;
+  if(!m||score<0.5){GEST.last='';return;}
+  if(name!==GEST.last){GEST.last=name;GEST.lastAt=now;return;}
+  if(now-GEST.lastAt>500 && now-GEST.reactAt>2200){
+    GEST.reactAt=now;
+    if(m.stop){try{speechSynthesis.cancel();}catch(e){}}
+    const line=m.say[Math.floor(Math.random()*m.say.length)];
+    const log=$('#gestLog');if(log){const d=document.createElement('div');d.className='msg krc';d.style.maxWidth='100%';d.textContent=m.e+' '+line;log.insertBefore(d,log.firstChild);while(log.children.length>6)log.removeChild(log.lastChild);}
+    kspeak(line);
+  }
 }
 
 /* ---------- CHAT + face ---------- */

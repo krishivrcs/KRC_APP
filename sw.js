@@ -1,5 +1,5 @@
 /* KRC companion service worker — shell cache + push */
-const CACHE = 'krc-app-v5';
+const CACHE = 'krc-app-v6';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -12,6 +12,7 @@ self.addEventListener('activate', e => {
 // Shell-first for navigations/assets; always go to network for the cloud API.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return; // never touch cross-origin (CDN, model files, cloud API)
   if (e.request.method !== 'GET' || url.pathname.includes('/api/') || url.pathname === '/krc') return; // let API calls hit network
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html'))));
 });
