@@ -794,7 +794,7 @@ function gestHandle(name,score){
 /* ---------- CHAT + face ---------- */
 function renderChat(){
   const main=$('#main');
-  main.innerHTML='<div class="face-wrap"><canvas id="face" width="300" height="110"></canvas></div>';
+  main.innerHTML='<div class="face-wrap"><canvas id="face" width="300" height="230"></canvas></div>';
   if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}
   if(!cfg.token){main.insertAdjacentHTML('beforeend','<div class="msg sys">Connect KRC in <b>You → Setup</b>.</div>');return;}
   if(!chat.length)main.insertAdjacentHTML('beforeend','<div class="msg sys">Say hello to KRC 👋</div>');
@@ -842,30 +842,56 @@ function startVoice(){
   r.onerror=()=>{};r.onend=()=>{mic.classList.remove('on');FACE.listening=false;};
   try{r.start();}catch(e){mic.classList.remove('on');FACE.listening=false;}
 }
-const FACE={emo:'idle',speaking:false,listening:false,running:false,lx:0,ly:0,tlx:0,tly:0,sac:0,blinkT:0,nextBlink:0,emoUntil:0};
-const FEMO={idle:{},listening:{h:1.12},thinking:{lookUp:1},speaking:{},excited:{shape:'circle',h:1.05},playful:{},affection:{shape:'crescent'},relief:{shape:'crescent'},happy:{shape:'crescent'},sad:{h:0.55,droop:1},concerned:{h:0.7},angry:{h:0.7},sleepy:{h:0.3},awe:{shape:'circle',h:1.1},surprised:{shape:'circle',h:1.12},curiosity:{lookUp:1},attention:{h:1.1},suspicion:{h:0.6},mischievous:{h:0.75},naughty:{h:0.8},scared:{shape:'circle',h:1.12},fear:{shape:'circle',h:1.16},encouraging:{shape:'crescent'},sarcastic:{h:0.7,lookUp:1},determined:{h:0.85},embarrassed:{h:0.7,droop:1},haughty:{h:0.65,lookUp:1},jealous:{h:0.6},shock:{shape:'circle',h:1.2}};
-function setFaceEmo(e){if(FEMO[e]){FACE.emo=e;FACE.emoUntil=performance.now()+6000;}}
+const FACE={emo:'idle',speaking:false,listening:false,running:false,sx:0,sy:0,tsx:0,tsy:0,sac:0,blinkT:0,nextBlink:0,emoUntil:0};
+// Taby-style presets (eye shape/colour, brow, mouth, glow, base size). One shared design for every KRC surface.
+const TABY={
+  idle:     {eye:'round',   ec:'#eaf6ff',brow:'none',  mouth:'dot',  glow:'#37e0ff',w:48,h:60},
+  happy:    {eye:'crescent',ec:'#eaf6ff',brow:'none',  mouth:'smile',glow:'#ffd23f',w:54,h:50},
+  excited:  {eye:'star',    ec:'#ffd400',brow:'up',    mouth:'open', glow:'#ffd23f',w:60,h:60},
+  love:     {eye:'heart',   ec:'#ff6fae',brow:'none',  mouth:'smile',glow:'#ff5db1',w:56,h:54},
+  surprised:{eye:'circle',  ec:'#eaf6ff',brow:'up',    mouth:'o',    glow:'#00e5ff',w:58,h:58},
+  curious:  {eye:'round',   ec:'#eaf6ff',brow:'raiseL',mouth:'small',glow:'#ffd400',w:50,h:60},
+  sad:      {eye:'round',   ec:'#dfeaff',brow:'down',  mouth:'frown',glow:'#4aa3ff',w:48,h:54},
+  angry:    {eye:'round',   ec:'#ffdede',brow:'down',  mouth:'flat', glow:'#ff4d4d',w:50,h:42},
+  sleepy:   {eye:'line',    ec:'#cdd6ff',brow:'none',  mouth:'dot',  glow:'#7a86ff',w:50,h:12},
+  thinking: {eye:'round',   ec:'#eaf6ff',brow:'raiseL',mouth:'small',glow:'#37e0ff',w:48,h:58,lookUp:1},
+};
+// map KRC's full emotion vocabulary -> a Taby preset
+const EMAP={idle:'idle',neutral:'idle',listening:'surprised',speaking:'happy',thinking:'thinking',happy:'happy',playful:'happy',relief:'happy',encouraging:'happy',determined:'happy',excited:'excited',awe:'excited',shock:'surprised',surprised:'surprised',scared:'surprised',fear:'surprised',affection:'love',love:'love',curiosity:'curious',curious:'curious',attention:'curious',suspicion:'curious',mischievous:'curious',naughty:'curious',haughty:'curious',sarcastic:'curious',concerned:'sad',sad:'sad',embarrassed:'sad',jealous:'sad',angry:'angry',sleepy:'sleepy'};
+function setFaceEmo(e){FACE.emo=EMAP[e]||'idle';FACE.emoUntil=performance.now()+6000;}
 function rrF(g,x,y,w,h,r,col){r=Math.min(r,h/2,w/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fillStyle=col;g.fill();}
+function _hexA(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
+function _glowE(g,cx,cy,rw,rh,col){const gr=g.createRadialGradient(cx,cy,3,cx,cy,rw);gr.addColorStop(0,_hexA(col,.5));gr.addColorStop(.5,_hexA(col,.18));gr.addColorStop(1,_hexA(col,0));g.fillStyle=gr;g.beginPath();g.ellipse(cx,cy,rw,rh,0,0,7);g.fill();}
+function _star(g,cx,cy,R,col,glow){_glowE(g,cx,cy,R*1.7,R*1.7,glow);g.save();g.translate(cx,cy);g.beginPath();for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5;g.lineTo(Math.cos(a)*R,Math.sin(a)*R);const a2=a+Math.PI/5;g.lineTo(Math.cos(a2)*R*0.46,Math.sin(a2)*R*0.46);}g.closePath();const lg=g.createLinearGradient(0,-R,0,R);lg.addColorStop(0,'#fff6bf');lg.addColorStop(.5,col);lg.addColorStop(1,'#f0a500');g.fillStyle=lg;g.fill();g.save();g.globalAlpha=.55;g.fillStyle='#fff';g.beginPath();g.ellipse(-R*0.28,-R*0.3,R*0.16,R*0.12,0,0,7);g.fill();g.restore();g.restore();}
+function _heart(g,cx,cy,s,col,glow){_glowE(g,cx,cy,s*1.9,s*1.9,glow);const lg=g.createLinearGradient(0,cy-s,0,cy+s);lg.addColorStop(0,'#ffe0ef');lg.addColorStop(1,col);g.fillStyle=lg;g.beginPath();g.moveTo(cx,cy+s*0.85);g.bezierCurveTo(cx-s*1.1,cy-s*0.1,cx-s*0.78,cy-s*1.05,cx,cy-s*0.32);g.bezierCurveTo(cx+s*0.78,cy-s*1.05,cx+s*1.1,cy-s*0.1,cx,cy+s*0.85);g.closePath();g.fill();g.save();g.globalAlpha=.5;g.fillStyle='#fff';g.beginPath();g.ellipse(cx-s*0.34,cy-s*0.34,s*0.2,s*0.14,-0.5,0,7);g.fill();g.restore();}
+function _brow(g,cx,cy,kind,col,side){if(kind==='none')return;g.strokeStyle=col;g.lineWidth=6;g.lineCap='round';const yy=cy-44;g.beginPath();if(kind==='up'){g.moveTo(cx-15,yy+5);g.quadraticCurveTo(cx,yy-6,cx+15,yy+5);}else if(kind==='down'){const s=side<0?1:-1;g.moveTo(cx-15*s,yy-3);g.lineTo(cx+15*s,yy+8);}else if(kind==='raiseL'){if(side<0){g.moveTo(cx-14,yy-3);g.quadraticCurveTo(cx,yy-12,cx+14,yy-3);}else{g.moveTo(cx-14,yy+5);g.quadraticCurveTo(cx,yy+1,cx+14,yy+5);}}g.stroke();}
+function _mouth(g,cx,cy,shape,col){g.lineCap='round';g.lineJoin='round';if(shape==='dot'){g.fillStyle=col;g.beginPath();g.ellipse(cx,cy,8,6,0,0,7);g.fill();}else if(shape==='smile'||shape==='small'){const w=shape==='smile'?46:28;g.strokeStyle=col;g.lineWidth=6;g.beginPath();g.moveTo(cx-w/2,cy-4);g.quadraticCurveTo(cx,cy+16,cx+w/2,cy-4);g.stroke();}else if(shape==='frown'){g.strokeStyle=col;g.lineWidth=6;g.beginPath();g.moveTo(cx-22,cy+8);g.quadraticCurveTo(cx,cy-8,cx+22,cy+8);g.stroke();}else if(shape==='flat'){g.strokeStyle=col;g.lineWidth=6;g.beginPath();g.moveTo(cx-20,cy);g.lineTo(cx+20,cy);g.stroke();}else if(shape==='o'){g.fillStyle='#7a1220';g.beginPath();g.ellipse(cx,cy,12,15,0,0,7);g.fill();g.strokeStyle=col;g.lineWidth=6;g.stroke();}else if(shape==='open'){g.fillStyle='#7a1220';g.beginPath();g.moveTo(cx-26,cy-10);g.quadraticCurveTo(cx,cy-16,cx+26,cy-10);g.quadraticCurveTo(cx+20,cy+26,cx,cy+28);g.quadraticCurveTo(cx-20,cy+26,cx-26,cy-10);g.closePath();g.fill();g.strokeStyle=col;g.lineWidth=7;g.stroke();g.fillStyle='#e0668a';g.beginPath();g.ellipse(cx,cy+18,12,7,0,0,7);g.fill();}}
+function _eye(g,cx,cy,p,blink){const col=p.ec,h=Math.max(5,p.h*blink);
+  if(p.eye==='star'){_star(g,cx,cy,p.w/2,col,p.glow);return;}
+  if(p.eye==='heart'){_heart(g,cx,cy,p.w*0.52,col,p.glow);return;}
+  _glowE(g,cx,cy,p.w*1.05,h*0.8+16,p.glow);g.fillStyle=col;
+  if(p.eye==='line'){rrF(g,cx-p.w/2,cy-h/2,p.w,Math.max(7,h),Math.min(7,h/2),col);}
+  else if(p.eye==='circle'){g.beginPath();g.ellipse(cx,cy,p.w/2,h/2,0,0,7);g.fill();}
+  else if(p.eye==='crescent'){g.strokeStyle=col;g.lineWidth=Math.max(8,h*0.28);g.lineCap='round';const w=p.w*0.92;g.beginPath();g.moveTo(cx-w/2,cy-h*0.14);g.quadraticCurveTo(cx,cy+h*0.52,cx+w/2,cy-h*0.14);g.stroke();}
+  else{rrF(g,cx-p.w/2,cy-h/2,p.w,h,Math.min(22,p.w/2),col);if(h>16){g.save();g.globalAlpha=.5;g.fillStyle='#fff';g.beginPath();g.ellipse(cx-p.w*0.16,cy-h*0.2,p.w*0.14,h*0.12,0,0,7);g.fill();g.restore();}}
+}
 function drawFace(){
   const c=document.getElementById('face');if(!c||view!=='chat'){FACE.running=false;return;}
   const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now(),t=now/1000;
   if(FACE.emoUntil&&now>FACE.emoUntil){FACE.emo='idle';FACE.emoUntil=0;}
-  const E=FEMO[FACE.emo]||{};
-  // soft gradient backdrop for the face panel
-  const bg=g.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#141233');bg.addColorStop(1,'#0a0c1c');g.fillStyle=bg;g.fillRect(0,0,W,H);
-  let blink=1;if(now>FACE.nextBlink){FACE.blinkT=now;FACE.nextBlink=now+2000+Math.random()*3000;}
-  const bd=now-FACE.blinkT;if(bd<140){blink=Math.abs(bd-70)/70;blink=0.12+0.88*blink;}
-  if(now>FACE.sac){FACE.tlx=(Math.random()-.5)*10;FACE.tly=(Math.random()-.5)*4;FACE.sac=now+1200+Math.random()*2200;}
-  FACE.lx+=(FACE.tlx-FACE.lx)*.08;FACE.ly+=(FACE.tly-FACE.ly)*.08;
-  const cx=W/2,cy=H/2+Math.sin(t*1.6)*1.3,gap=44;
-  const hMul=(E.h||1)*(FACE.speaking?(1+0.10*Math.abs(Math.sin(t*11))):1),lookY=(E.lookUp?-7:0)+(E.droop?7:0);
-  const EYE='#7ad8ff';
-  [-1,1].forEach(s=>{const ex=cx+s*gap,ey=cy;
-    if(E.shape==='crescent'){g.strokeStyle=EYE;g.lineWidth=8;g.lineCap='round';g.beginPath();g.arc(ex,ey+4,22,Math.PI*1.16,Math.PI*1.84);g.stroke();}
-    else if(E.shape==='circle'){const r=24*hMul;g.fillStyle=EYE;g.shadowColor=EYE;g.shadowBlur=14;g.beginPath();g.ellipse(ex,ey,r,r*blink,0,0,7);g.fill();g.shadowBlur=0;if(blink>0.5){g.fillStyle='#0a1020';g.beginPath();g.arc(ex+FACE.lx*0.6,ey+FACE.ly*0.6+lookY,7,0,7);g.fill();}}
-    else{const w=42,h=48*hMul*blink;g.shadowColor=EYE;g.shadowBlur=14;rrF(g,ex-w/2,ey-h/2,w,h,12,EYE);g.shadowBlur=0;if(h>14){const pr=8,mx=w/2-pr-3,my=h/2-pr-3;const px=ex+Math.max(-mx,Math.min(mx,FACE.lx)),py=ey+Math.max(-my,Math.min(my,FACE.ly+lookY));g.fillStyle='#0a1020';g.beginPath();g.arc(px,py,pr,0,7);g.fill();}}
-  });
-  if(FACE.listening){g.strokeStyle='rgba(122,216,255,'+(0.35+0.35*Math.abs(Math.sin(t*6)))+')';g.lineWidth=2;g.beginPath();g.arc(cx,cy,66,0,7);g.stroke();}
+  const p=TABY[FACE.emo]||TABY.idle;
+  g.fillStyle='#000';g.fillRect(0,0,W,H);
+  let blink=1;if(now>FACE.nextBlink){FACE.blinkT=now;FACE.nextBlink=now+2200+Math.random()*3000;}
+  const bd=now-FACE.blinkT;if(bd<150&&p.eye!=='star'&&p.eye!=='heart'){blink=Math.abs(bd-75)/75;blink=0.1+0.9*blink;}
+  if(now>FACE.sac){FACE.tsx=(Math.random()-.5)*16;FACE.tsy=(Math.random()-.5)*8;FACE.sac=now+1500+Math.random()*2200;}
+  FACE.sx+=(FACE.tsx-FACE.sx)*.07;FACE.sy+=(FACE.tsy-FACE.sy)*.07;
+  const breath=Math.sin(t*1.5)*2,sx=FACE.sx,sy=FACE.sy+(p.lookUp?-6:0)+breath;
+  const gap=54,cxL=W/2-gap+sx,cxR=W/2+gap+sx,ey=H*0.40+sy,my=H*0.78+breath;
+  const pe={...p,h:p.h+breath+(FACE.speaking?Math.abs(Math.sin(t*11))*4:0),w:p.w+breath*0.5};
+  _brow(g,cxL,ey,p.brow,p.ec,-1);_brow(g,cxR,ey,p.brow,p.ec,1);
+  _eye(g,cxL,ey,pe,blink);_eye(g,cxR,ey,pe,blink);
+  _mouth(g,W/2+sx,my,p.mouth,p.ec);
+  if(FACE.listening){g.strokeStyle='rgba(0,229,255,'+(0.3+0.3*Math.abs(Math.sin(t*6)))+')';g.lineWidth=2;g.beginPath();g.arc(W/2,ey,86,0,7);g.stroke();}
   requestAnimationFrame(drawFace);
 }
 
