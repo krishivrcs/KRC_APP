@@ -892,21 +892,42 @@ function startVoice(){
 }
 const FACE={emo:'idle',speaking:false,listening:false,running:false,sx:0,sy:0,tsx:0,tsy:0,sac:0,blinkT:0,nextBlink:0,emoUntil:0};
 // Taby-style presets (eye shape/colour, brow, mouth, glow, base size). One shared design for every KRC surface.
+/* The full 27-expression set (KRC_FACE_SPEC.md) — white eyes + cyan glow by default;
+   strong emotions get coloured eyes; expression via eye shape + angled LIDS (no eyebrows)
+   + blush + a small ambient symbol. Kept in lock-step with Desk 1.85 + Nano. */
+const W_='#eaf6ff',CY='#37e0ff';
 const TABY={
-  idle:     {eye:'round',   ec:'#eaf6ff',brow:'none',  mouth:'dot',  glow:'#37e0ff',w:48,h:60},
-  happy:    {eye:'crescent',ec:'#eaf6ff',brow:'none',  mouth:'smile',glow:'#ffd23f',w:54,h:50},
-  excited:  {eye:'star',    ec:'#ffd400',brow:'up',    mouth:'open', glow:'#ffd23f',w:60,h:60},
-  love:     {eye:'heart',   ec:'#ff6fae',brow:'none',  mouth:'smile',glow:'#ff5db1',w:56,h:54},
-  surprised:{eye:'circle',  ec:'#eaf6ff',brow:'up',    mouth:'o',    glow:'#00e5ff',w:58,h:58},
-  curious:  {eye:'round',   ec:'#eaf6ff',brow:'raiseL',mouth:'small',glow:'#ffd400',w:50,h:60},
-  sad:      {eye:'round',   ec:'#dfeaff',brow:'down',  mouth:'frown',glow:'#4aa3ff',w:48,h:54},
-  angry:    {eye:'round',   ec:'#ffdede',brow:'down',  mouth:'flat', glow:'#ff4d4d',w:50,h:42},
-  sleepy:   {eye:'line',    ec:'#cdd6ff',brow:'none',  mouth:'dot',  glow:'#7a86ff',w:50,h:12},
-  thinking: {eye:'round',   ec:'#eaf6ff',brow:'raiseL',mouth:'small',glow:'#37e0ff',w:48,h:58,lookUp:1},
+  idle:       {eye:'round',   ec:W_,mouth:'dot',  glow:CY,      w:48,h:58},
+  attention:  {eye:'circle',  ec:W_,mouth:'dot',  glow:'#5ce8ff',w:56,h:60,lookUp:1,sheen:1},
+  curiosity:  {eye:'round',   ec:W_,mouth:'small',glow:CY,      w:50,h:58,lookUp:1,lookSide:1,sym:'? ?'},
+  suspicion:  {eye:'round',   ec:'#dbe9f6',mouth:'flat',glow:'#8fb6d8',w:50,h:40,lid:'flat',lookSide:1},
+  playful:    {eye:'star',    ec:CY,mouth:'smile',glow:CY,      w:58,h:58,sym:'♥',symc:'#ff5db1'},
+  excited:    {eye:'circle',  ec:W_,mouth:'open', glow:'#5ce8ff',w:60,h:60,sheen:1},
+  affection:  {eye:'heart',   ec:'#ff6fae',mouth:'smile',glow:'#ff5db1',w:56,h:54,blush:1,sym:'♥',symc:'#ff5db1'},
+  sleepy:     {eye:'line',    ec:'#b9c2ff',mouth:'dot',glow:'#7a86ff',w:50,h:12,sym:'zZ',symc:'#9aa6ff'},
+  mischievous:{eye:'round',   ec:W_,mouth:'small',glow:CY,      w:50,h:40,lid:'flat',lookSide:1},
+  naughty:    {eye:'round',   ec:W_,mouth:'small',glow:CY,      w:50,h:38,lid:'flat',lookSide:1},
+  sad:        {eye:'round',   ec:'#bcd4ff',mouth:'frown',glow:'#4aa3ff',w:48,h:52,lid:'outer',lookDn:1},
+  concerned:  {eye:'round',   ec:'#c7dbff',mouth:'frown',glow:'#4aa3ff',w:46,h:48,lid:'outer'},
+  scared:     {eye:'circle',  ec:'#ffd23c',mouth:'o',   glow:'#ffcf33',w:58,h:60,sheen:1},
+  fear:       {eye:'circle',  ec:'#ffd23c',mouth:'o',   glow:'#ffcf33',w:62,h:64,sheen:1},
+  angry:      {eye:'round',   ec:'#ff5a5a',mouth:'flat',glow:'#ff4d4d',w:52,h:42,lid:'inner'},
+  encouraging:{eye:'round',   ec:W_,mouth:'smile',glow:CY,      w:50,h:56},
+  sarcastic:  {eye:'round',   ec:W_,mouth:'flat', glow:CY,      w:50,h:38,lid:'flat',lookSide:1},
+  awe:        {eye:'star',    ec:'#8fd8ff',mouth:'open',glow:'#8fd8ff',w:58,h:58,sym:'✦',symc:'#8fd8ff'},
+  determined: {eye:'round',   ec:W_,mouth:'flat', glow:CY,      w:52,h:44,lid:'inner'},
+  embarrassed:{eye:'round',   ec:'#ff9dc4',mouth:'small',glow:'#ff5db1',w:46,h:48,blush:1,sym:'?!',symc:'#ffd23c'},
+  haughty:    {eye:'round',   ec:W_,mouth:'small',glow:CY,      w:50,h:44,lid:'flat',lookDn:1},
+  relief:     {eye:'crescent',ec:W_,mouth:'none', glow:CY,      w:54,h:48,sym:'WHEW',symc:'#9fe8ff'},
+  jealous:    {eye:'round',   ec:'#3be08a',mouth:'flat',glow:'#3be08a',w:50,h:42,lid:'inner'},
+  shock:      {eye:'circle',  ec:W_,mouth:'o',    glow:CY,      w:60,h:60,pupil:1,sheen:1,sym:'!!!',symc:'#ffd23c'},
+  listening:  {eye:'round',   ec:W_,mouth:'dot',  glow:CY,      w:54,h:58},
+  thinking:   {eye:'round',   ec:W_,mouth:'dot',  glow:CY,      w:48,h:56,lookUp:1,lidOne:1,sym:'…',symc:'#9fe8ff'},
+  speaking:   {eye:'round',   ec:W_,mouth:'open', glow:CY,      w:50,h:58},
 };
-// map KRC's full emotion vocabulary -> a Taby preset
-const EMAP={idle:'idle',neutral:'idle',listening:'surprised',speaking:'happy',thinking:'thinking',happy:'happy',playful:'happy',relief:'happy',encouraging:'happy',determined:'happy',excited:'excited',awe:'excited',shock:'surprised',surprised:'surprised',scared:'surprised',fear:'surprised',affection:'love',love:'love',curiosity:'curious',curious:'curious',attention:'curious',suspicion:'curious',mischievous:'curious',naughty:'curious',haughty:'curious',sarcastic:'curious',concerned:'sad',sad:'sad',embarrassed:'sad',jealous:'sad',angry:'angry',sleepy:'sleepy'};
-function setFaceEmo(e){FACE.emo=EMAP[e]||'idle';FACE.emoUntil=performance.now()+6000;}
+// Cloud emotion strings (§2e, 27) map 1:1; a few friendly aliases fold in.
+const EMAP={neutral:'idle',happy:'encouraging',love:'affection',surprised:'shock',curious:'curiosity',excitement:'excited',determination:'determined',anger:'angry',sleepiness:'sleepy'};
+function setFaceEmo(e){FACE.emo=(TABY[e]?e:(TABY[EMAP[e]]?EMAP[e]:'idle'));FACE.emoUntil=performance.now()+6000;}
 function rrF(g,x,y,w,h,r,col){r=Math.min(r,h/2,w/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fillStyle=col;g.fill();}
 function _hexA(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
 function _glowE(g,cx,cy,rw,rh,col){const gr=g.createRadialGradient(cx,cy,3,cx,cy,rw);gr.addColorStop(0,_hexA(col,.5));gr.addColorStop(.5,_hexA(col,.18));gr.addColorStop(1,_hexA(col,0));g.fillStyle=gr;g.beginPath();g.ellipse(cx,cy,rw,rh,0,0,7);g.fill();}
@@ -918,11 +939,31 @@ function _eye(g,cx,cy,p,blink){const col=p.ec,h=Math.max(5,p.h*blink);
   if(p.eye==='star'){_star(g,cx,cy,p.w/2,col,p.glow);return;}
   if(p.eye==='heart'){_heart(g,cx,cy,p.w*0.52,col,p.glow);return;}
   _glowE(g,cx,cy,p.w*1.05,h*0.8+16,p.glow);g.fillStyle=col;
+  const sheen=(k)=>{if(h>16){g.save();g.globalAlpha=p.sheen?.62:.5;g.fillStyle='#fff';const s=p.sheen?1.35:1;g.beginPath();g.ellipse(cx-p.w*0.16,cy-h*0.2,p.w*0.14*s,h*0.12*s,0,0,7);g.fill();g.restore();}};
   if(p.eye==='line'){rrF(g,cx-p.w/2,cy-h/2,p.w,Math.max(7,h),Math.min(7,h/2),col);}
-  else if(p.eye==='circle'){g.beginPath();g.ellipse(cx,cy,p.w/2,h/2,0,0,7);g.fill();}
+  else if(p.eye==='circle'){g.beginPath();g.ellipse(cx,cy,p.w/2,h/2,0,0,7);g.fill();sheen();
+    if(p.pupil){g.fillStyle='#0a1420';g.beginPath();g.ellipse(cx,cy+h*0.06,p.w*0.14,h*0.14,0,0,7);g.fill();}}
   else if(p.eye==='crescent'){g.strokeStyle=col;g.lineWidth=Math.max(8,h*0.28);g.lineCap='round';const w=p.w*0.92;g.beginPath();g.moveTo(cx-w/2,cy-h*0.14);g.quadraticCurveTo(cx,cy+h*0.52,cx+w/2,cy-h*0.14);g.stroke();}
-  else{rrF(g,cx-p.w/2,cy-h/2,p.w,h,Math.min(22,p.w/2),col);if(h>16){g.save();g.globalAlpha=.5;g.fillStyle='#fff';g.beginPath();g.ellipse(cx-p.w*0.16,cy-h*0.2,p.w*0.14,h*0.12,0,0,7);g.fill();g.restore();}}
+  else{rrF(g,cx-p.w/2,cy-h/2,p.w,h,Math.min(22,p.w/2),col);sheen();}
 }
+/* Angled eyelid — a black cut across the eye top (replaces eyebrows). side: -1 L, +1 R. */
+function _lid(g,cx,cy,w,h,kind,side){
+  if(!kind||kind==='none')return;
+  g.fillStyle='#000';const x0=cx-w/2-5,x1=cx+w/2+5,yt=cy-h/2-6;
+  const yl=cy-h*0.42,yh=cy+h*0.12,ym=cy-h*0.04;
+  g.beginPath();
+  if(kind==='flat'){g.moveTo(x0,yt);g.lineTo(x1,yt);g.lineTo(x1,ym);g.lineTo(x0,ym);}
+  else if(kind==='inner'){ // fierce V: inner corner lower
+    if(side<0){g.moveTo(x0,yt);g.lineTo(x1,yt);g.lineTo(x1,yh);g.lineTo(x0,yl);}
+    else{g.moveTo(x0,yt);g.lineTo(x1,yt);g.lineTo(x1,yl);g.lineTo(x0,yh);}
+  }else if(kind==='outer'){ // sad droop: outer corner lower
+    if(side<0){g.moveTo(x0,yt);g.lineTo(x1,yt);g.lineTo(x1,yl);g.lineTo(x0,yh);}
+    else{g.moveTo(x0,yt);g.lineTo(x1,yt);g.lineTo(x1,yh);g.lineTo(x0,yl);}
+  }
+  g.closePath();g.fill();
+}
+function _blush(g,cx,cy,col){g.save();g.globalAlpha=.4;g.fillStyle=col||'#ff8fbf';g.beginPath();g.ellipse(cx,cy,16,9,0,0,7);g.fill();g.restore();}
+function _sym(g,x,y,text,col,t){g.save();g.globalAlpha=.85;g.fillStyle=col||'#9fe8ff';g.font='700 22px system-ui,sans-serif';g.textAlign='center';g.fillText(text,x,y+Math.sin(t*2.2)*3);g.restore();}
 function drawFace(){
   const c=document.getElementById('face');if(!c||view!=='chat'){FACE.running=false;return;}
   const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now(),t=now/1000;
@@ -933,12 +974,17 @@ function drawFace(){
   const bd=now-FACE.blinkT;if(bd<150&&p.eye!=='star'&&p.eye!=='heart'){blink=Math.abs(bd-75)/75;blink=0.1+0.9*blink;}
   if(now>FACE.sac){FACE.tsx=(Math.random()-.5)*16;FACE.tsy=(Math.random()-.5)*8;FACE.sac=now+1500+Math.random()*2200;}
   FACE.sx+=(FACE.tsx-FACE.sx)*.07;FACE.sy+=(FACE.tsy-FACE.sy)*.07;
-  const breath=Math.sin(t*1.5)*2,sx=FACE.sx,sy=FACE.sy+(p.lookUp?-6:0)+breath;
+  const breath=Math.sin(t*1.5)*2,gaze=(p.lookSide?7:0);
+  const sx=FACE.sx+gaze,sy=FACE.sy+(p.lookUp?-6:0)+(p.lookDn?6:0)+breath;
   const gap=54,cxL=W/2-gap+sx,cxR=W/2+gap+sx,ey=H*0.40+sy,my=H*0.78+breath;
   const pe={...p,h:p.h+breath+(FACE.speaking?Math.abs(Math.sin(t*11))*4:0),w:p.w+breath*0.5};
-  _brow(g,cxL,ey,p.brow,p.ec,-1);_brow(g,cxR,ey,p.brow,p.ec,1);
   _eye(g,cxL,ey,pe,blink);_eye(g,cxR,ey,pe,blink);
-  _mouth(g,W/2+sx,my,p.mouth,p.ec);
+  const lidH=pe.h*blink;
+  if(p.lid){_lid(g,cxL,ey,pe.w,lidH,p.lid,-1);_lid(g,cxR,ey,pe.w,lidH,p.lid,1);}
+  if(p.lidOne)_lid(g,cxR,ey,pe.w,lidH,'flat',1); // one raised lid (thinking)
+  if(p.blush){_blush(g,cxL-6,ey+pe.h*0.55,'#ff8fbf');_blush(g,cxR+6,ey+pe.h*0.55,'#ff8fbf');}
+  if(p.mouth!=='none')_mouth(g,W/2+sx,my,p.mouth,p.ec);
+  if(p.sym)_sym(g,W*0.72,H*0.20,p.sym,p.symc,t);
   if(FACE.listening){g.strokeStyle='rgba(0,229,255,'+(0.3+0.3*Math.abs(Math.sin(t*6)))+')';g.lineWidth=2;g.beginPath();g.arc(W/2,ey,86,0,7);g.stroke();}
   requestAnimationFrame(drawFace);
 }
