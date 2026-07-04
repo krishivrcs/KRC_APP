@@ -608,6 +608,16 @@ function renderPC(){
       <div class="htxt"><b id="pcName">Checking…</b><p id="pcSub">KRC runs your PC like Jarvis — from any device.</p></div>
       <span class="status-dot" id="pcDot" style="margin-left:auto"></span>
     </div>
+    <h2 class="sec">Live screen</h2>
+    <div class="card" style="padding:10px">
+      <div id="pcShotWrap" style="position:relative;border-radius:12px;overflow:hidden;background:#05070f;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center">
+        <img id="pcLiveShot" style="width:100%;height:100%;object-fit:contain;display:none;cursor:zoom-in"/>
+        <div id="pcShotHint" style="color:var(--dim);font-size:14px;text-align:center;padding:20px">Tap “Refresh screen” to see your PC.</div>
+      </div>
+      <button class="pill-btn" id="pcRefresh" style="width:100%;margin-top:10px">🔄 Refresh screen</button>
+      <div class="quick" style="margin-top:10px"><input id="pcAns" class="inp" placeholder="Type an answer for your PC…"/><button class="add" id="pcAnsSend" style="font-size:20px" title="Type this into the active window & press Enter">↩</button></div>
+      <div class="hint">Types your answer into the active window, presses Enter, then shows the result.</div>
+    </div>
     <h2 class="sec">Quick controls</h2>
     <div class="chips" id="pcChips">
       ${PC_CTRL.map((x,i)=>`<button class="chip" data-i="${i}">${x.i} ${x.t}</button>`).join('')}
@@ -620,7 +630,45 @@ function renderPC(){
   const inp=$('#pcCmd'),snd=$('#pcSend');
   const go=()=>{const v=(inp.value||'').trim();if(v){pcDo(v);inp.value='';}};
   snd.onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+  // Remote Control: live screen + answer-for-me
+  $('#pcRefresh').onclick=()=>pcRefreshShot();
+  const ai=$('#pcAns'),as=$('#pcAnsSend');
+  const goAns=()=>{const v=(ai.value||'').trim();if(v){pcAnswer(v);ai.value='';}};
+  as.onclick=goAns;ai.addEventListener('keydown',e=>{if(e.key==='Enter')goAns();});
+  const li=$('#pcLiveShot');if(li)li.onclick=function(){if(this.src)window.open(this.src,'_blank');};
   pcStatus();
+  if(pcAutoShot){pcAutoShot=false;pcRefreshShot();}
+}
+let pcAutoShot=false;
+// Load the latest PC frame into the live pane (POST a fresh screenshot, then show it).
+async function pcShotInto(imgSel,hintSel){
+  const img=$(imgSel),hint=$(hintSel);
+  if(!cfg.token){if(hint){hint.style.display='';hint.textContent='Connect KRC first (You → Setup).';}return false;}
+  try{
+    const d=await api('/krc',{method:'POST',body:JSON.stringify({message:'take a screenshot'})});
+    setDot(true);
+    const blob=await pcFetchBlob(d.shot||'/api/pc/shot/last');
+    if(!blob){if(hint){hint.style.display='';hint.textContent='No screen yet — is KRC running on your PC?';}return false;}
+    const url=URL.createObjectURL(blob);
+    if(img){if(img.dataset.u)URL.revokeObjectURL(img.dataset.u);img.dataset.u=url;img.src=url;img.style.display='';}
+    if(hint)hint.style.display='none';
+    return true;
+  }catch(e){setDot(false);if(hint){hint.style.display='';hint.textContent='⚠ Couldn’t reach your PC — check You → Setup.';}return false;}
+}
+async function pcRefreshShot(){
+  const b=$('#pcRefresh');if(b){b.disabled=true;b.textContent='📸 Capturing…';}
+  await pcShotInto('#pcLiveShot','#pcShotHint');
+  if(b){b.disabled=false;b.textContent='🔄 Refresh screen';}
+}
+// Type the user's answer into the focused window, press Enter, then show the fresh result.
+async function pcAnswer(text){
+  if(!cfg.token){pcCard('Connect KRC first (You → Setup).');return;}
+  const card=pcCard('⏳ Answering: <b>'+escapeHtml(text)+'</b> …');
+  try{
+    const d=await api('/krc',{method:'POST',body:JSON.stringify({message:'answer '+text+' and submit'})});
+    setDot(true);const reply=d.reply||'Done.';if(card)card.textContent=reply;kspeak(reply);
+    setTimeout(pcRefreshShot,1500); // let the PC settle, then show the result
+  }catch(e){if(card)card.textContent='⚠ '+e.message+' — check your connection.';setDot(false);}
 }
 async function pcStatus(){
   const nm=$('#pcName'),sub=$('#pcSub'),dot=$('#pcDot');
@@ -643,7 +691,7 @@ async function pcDo(cmd){
     pcStatus();
   }catch(e){if(card)card.textContent='⚠ '+e.message+' — check your connection.';setDot(false);}
 }
-async function pcFetchBlob(path){for(let i=0;i<6;i++){try{const r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});if(r.ok)return await r.blob();if(r.status!==404)return null;}catch(e){return null;}await new Promise(res=>setTimeout(res,1500));}return null;}
+async function pcFetchBlob(path){for(let i=0;i<6;i++){try{const u=cfg.url+path+(path.includes('?')?'&':'?')+'t='+Date.now();const r=await fetch(u,{headers:{'X-KRC-Token':cfg.token}});if(r.ok)return await r.blob();if(r.status!==404)return null;}catch(e){return null;}await new Promise(res=>setTimeout(res,1500));}return null;}
 async function pcShowMedia(path,type,name){
   const blob=await pcFetchBlob(path);if(!blob)return;const url=URL.createObjectURL(blob);const out=$('#pcOut');if(!out)return;
   if(type==='shot'){const card=document.createElement('div');card.className='card';card.style.marginTop='10px';const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;border-radius:12px;display:block;cursor:zoom-in';img.onclick=()=>window.open(url,'_blank');card.appendChild(img);out.insertBefore(card,out.firstChild);}
@@ -1048,9 +1096,16 @@ function boot(){
   document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
   $('#sendBtn').onclick=send;$('#micBtn').onclick=startVoice;
   $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
-  show('home');
+  // Deep-link: an away-screen push opens straight to the Remote Control (PC) view.
+  const wantPC=(location.hash==='#pc');
+  if(wantPC){pcAutoShot=true;history.replaceState(null,'',location.pathname+location.search);}
+  show(wantPC?'pc':'home');
   if(cfg.token){api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false));syncSettingsDown();}
 }
+// The service worker asks us to route here when a "krc-away-screen" notification is tapped.
+if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',ev=>{
+  const m=ev.data||{};if(m.krc==='route'&&m.view==='pc'){if(typeof show==='function'){pcAutoShot=true;show('pc');}}
+});
 // decide: onboarding vs app
 if(cfg.onboarded && cfg.token){
   $('#onb').classList.add('hide');$('#app').classList.add('show');boot();

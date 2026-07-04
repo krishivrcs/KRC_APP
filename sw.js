@@ -1,5 +1,5 @@
 /* KRC companion service worker — shell cache + push */
-const CACHE = 'krc-app-v7';
+const CACHE = 'krc-app-v8';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -21,13 +21,20 @@ self.addEventListener('push', e => {
   let data = { title: 'KRC', body: 'You have an update.' };
   try { if (e.data) data = Object.assign(data, e.data.json()); } catch (_) { if (e.data) data.body = e.data.text(); }
   e.waitUntil(self.registration.showNotification(data.title || 'KRC', {
-    body: data.body || '', icon: './icon-192.png', badge: './icon-192.png', data: data
+    body: data.body || '', icon: './icon-192.png', badge: './icon-192.png',
+    tag: data.tag || undefined, data: data
   }));
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const d = e.notification.data || {};
+  // "krc-away-screen" (the PC needs input while you're away) deep-links to the Remote Control view.
+  const wantPC = (e.notification.tag === 'krc-away-screen') || (d.tag === 'krc-away-screen') || (d.view === 'pc');
+  const target = wantPC ? './index.html#pc' : './index.html';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ls => {
-    for (const c of ls) { if ('focus' in c) return c.focus(); }
-    if (clients.openWindow) return clients.openWindow('./index.html');
+    for (const c of ls) {
+      if ('focus' in c) { if (wantPC && 'postMessage' in c) c.postMessage({ krc: 'route', view: 'pc' }); return c.focus(); }
+    }
+    if (clients.openWindow) return clients.openWindow(target);
   }));
 });
