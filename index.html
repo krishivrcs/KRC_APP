@@ -172,6 +172,11 @@
   .typing i:nth-child(2){animation-delay:.2s}
   .typing i:nth-child(3){animation-delay:.4s}
   @keyframes tblink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  .msg.krc pre.code{background:#0b1120;border:1px solid var(--glass2);border-radius:10px;padding:10px 12px;margin:7px 0;overflow-x:auto;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45}
+  .msg.krc code{background:var(--glass2);padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em}
+  .msg.krc a{color:var(--cyan);word-break:break-word}
+  .copybtn{display:inline-block;margin-top:9px;background:var(--glass2);color:var(--faint);border:0;border-radius:8px;padding:4px 11px;font-size:12px;cursor:pointer}
+  .copybtn:active{transform:scale(.96)}
 
   /* settings */
   .set-group{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
@@ -860,10 +865,32 @@ function renderChat(){
   if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}
   if(!cfg.token){main.insertAdjacentHTML('beforeend','<div class="msg sys">Connect KRC in <b>You → Setup</b>.</div>');return;}
   if(!chat.length)main.insertAdjacentHTML('beforeend','<div class="msg sys">Say hello to KRC 👋</div>');
-  chat.forEach(m=>{const d=document.createElement('div');d.className='msg '+m.who;d.textContent=m.text;main.appendChild(d);});
+  chat.forEach(m=>{const d=document.createElement('div');d.className='msg '+m.who;
+    if(m.who==='krc'){d.innerHTML=fmtReply(m.text);
+      if((m.text||'').length>140){const cp=document.createElement('button');cp.className='copybtn';cp.textContent='⧉ copy';
+        cp.onclick=()=>{try{navigator.clipboard.writeText(m.text);cp.textContent='✓ copied';setTimeout(()=>{cp.textContent='⧉ copy';},1400);}catch(e){}};
+        d.appendChild(cp);}
+    }else d.textContent=m.text;
+    main.appendChild(d);});
   main.scrollTop=main.scrollHeight;
 }
 function addMsg(who,text){chat.push({who,text});if(view==='chat')renderChat();}
+// Jarvis-grade reply rendering: full content (never truncated) + safe markdown-lite. XSS-safe —
+// everything is HTML-escaped FIRST, then only fixed formatting tags are inserted. Code blocks are
+// pulled out to placeholders so their newlines survive the line-break pass.
+function fmtReply(t){
+  t=escapeHtml(t||'');
+  const blocks=[];
+  t=t.replace(/```([\s\S]*?)```/g,function(m,c){blocks.push(c.replace(/^\n+/,'').replace(/\n+$/,''));return '[[[CB'+(blocks.length-1)+']]]';});
+  t=t.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  t=t.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
+  t=t.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+  t=t.replace(/^[ \t]*#{1,6}[ \t]+(.+)$/gm,'<b>$1</b>');
+  t=t.replace(/^[ \t]*[-*][ \t]+(.+)$/gm,'• $1');
+  t=t.replace(/\n/g,'<br>');
+  t=t.replace(/\[\[\[CB(\d+)\]\]\]/g,function(m,i){return '<pre class="code">'+blocks[+i]+'</pre>';});
+  return t;
+}
 // A single "KRC is thinking…" bubble while a reply is in flight (renderChat rebuilds #main, so we
 // (re)append it after the user's message and remove it before the reply lands).
 function showTyping(on){
