@@ -177,6 +177,8 @@
   .msg.krc a{color:var(--cyan);word-break:break-word}
   .copybtn{display:inline-block;margin-top:9px;background:var(--glass2);color:var(--faint);border:0;border-radius:8px;padding:4px 11px;font-size:12px;cursor:pointer}
   .copybtn:active{transform:scale(.96)}
+  #offlineBar{display:none;position:fixed;top:0;left:0;right:0;z-index:60;background:#7a1f22;color:#ffecec;text-align:center;font-size:12.5px;font-weight:600;padding:6px 10px;letter-spacing:.2px}
+  #offlineBar.show{display:block}
 
   /* settings */
   .set-group{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
@@ -215,6 +217,7 @@
     <span class="sub" id="hsub">companion</span>
     <span class="status-dot" id="dot"></span>
   </header>
+  <div id="offlineBar">⚠ You're offline — reconnect to talk to KRC.</div>
   <main id="main"></main>
 
   <div class="composer hide" id="composer">
@@ -271,7 +274,10 @@ async function api(path,opts={}){
     ?'KRC took too long — it may be waking up. Give it a moment and try again.'
     :'Can’t reach KRC — check your connection or Setup.');}
   clearTimeout(t);
-  if(!r.ok)throw new Error('HTTP '+r.status);
+  if(!r.ok)throw new Error(r.status===401
+    ?'Not paired yet — add your token in You → Setup.'
+    :(r.status>=500?'KRC hit a server snag — give it a moment and try again.'
+    :'Something went wrong (HTTP '+r.status+').'));
   return r.json();
 }
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -1210,7 +1216,12 @@ function boot(){
   if(wantPC){pcAutoShot=true;history.replaceState(null,'',location.pathname+location.search);}
   show(wantPC?'pc':'home');
   if(cfg.token){api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false));syncSettingsDown();}
+  updateNet();
+  window.addEventListener('online',updateNet);
+  window.addEventListener('offline',updateNet);
 }
+// Persistent offline banner (navigator.onLine + online/offline events).
+function updateNet(){const on=navigator.onLine;const b=$('#offlineBar');if(b)b.classList.toggle('show',!on);if(!on)setDot(false);}
 // The service worker asks us to route here when a "krc-away-screen" notification is tapped.
 if('serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',ev=>{
   const m=ev.data||{};if(m.krc==='route'&&m.view==='pc'){if(typeof show==='function'){pcAutoShot=true;show('pc');}}
