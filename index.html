@@ -119,6 +119,20 @@
 
   .chips{display:flex;flex-wrap:wrap;gap:9px}
   .chip{background:var(--glass);border:1px solid var(--line);color:var(--txt);border-radius:14px;padding:11px 14px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;transition:.2s}
+  /* fleet presence strip — one brain, many bodies */
+  .fleet{display:flex;gap:9px;margin:12px 0 2px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dev{flex:1 0 auto;min-width:104px;display:flex;align-items:center;gap:10px;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+  .dev .dd{width:9px;height:9px;border-radius:50%;background:var(--danger);flex:0 0 auto;box-shadow:0 0 8px var(--danger)}
+  .dev.on .dd{background:var(--good);box-shadow:0 0 10px var(--good);animation:devpulse 2.6s infinite}
+  @keyframes devpulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .dev .dv-t{min-width:0}.dev .dv-t b{font-size:13px;font-weight:700;display:block}
+  .dev .dv-t span{color:var(--dim);font-size:11px;display:block;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* activity feed — what KRC's been up to across devices */
+  .act-row{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+  .act-row:last-child{border-bottom:0}
+  .act-row .act-i{font-size:15px;flex:0 0 auto;margin-top:1px;filter:saturate(.9)}
+  .act-row .act-t{min-width:0}.act-row .act-t span{font-size:13.5px;display:block;line-height:1.45}
+  .act-row .act-t small{color:var(--faint);font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
   .chip:hover{background:var(--glass2);border-color:var(--line2);transform:translateY(-1px)}
   .chip .ci{color:var(--cyan);display:flex}
 
@@ -414,6 +428,25 @@ function pomoTick(){if(!POMO.run)return;POMO.t--;if(POMO.t<=0){pomoDone();return
 function setupPomodoro(){pomoPaint();const s=$('#pomoStart'),r=$('#pomoReset');if(s)s.onclick=()=>{POMO.run=!POMO.run;if(POMO.run&&!POMO.iv)POMO.iv=setInterval(pomoTick,1000);pomoPaint();};if(r)r.onclick=()=>{POMO.run=false;if(POMO.iv){clearInterval(POMO.iv);POMO.iv=null;}POMO.mode='focus';POMO.t=25*60;pomoPaint();};}
 
 /* ---------- HOME ---------- */
+function _timeAgo(ts){if(!ts)return'';let s=Math.max(0,Date.now()/1000-ts);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function renderFleet(dv){
+  const box=$('#fleet');if(!box)return;
+  const defs=[['desk','Desk'],['nano','Nano'],['pc','PC']];
+  box.innerHTML=defs.map(([k,label])=>{
+    const d=dv[k],on=!!(d&&d.online);
+    let sub= !d ? 'not paired' : (k==='pc'&&d.title ? escapeHtml(String(d.title)).slice(0,26) : (on?'online':'offline'));
+    return `<div class="dev ${on?'on':''}"><span class="dd"></span><div class="dv-t"><b>${label}</b><span>${sub}</span></div></div>`;
+  }).join('');
+}
+async function loadActivity(){
+  const box=$('#activity');if(!box)return;
+  if(!cfg.token){box.innerHTML='<div class="empty" style="padding:12px 0">Connect KRC to see its activity.</div>';return;}
+  try{const a=await api('/api/activity?limit=8');const ev=(a&&a.events)||[];
+    if(!ev.length){box.innerHTML='<div class="empty" style="padding:12px 0">Nothing yet — KRC logs what it does across your devices here.</div>';return;}
+    const ic={reminder:'⏰',news:'📰',insight:'💡',brief:'📋',reactive:'💬',screen:'🖥️',vision:'👁️',companion:'✨'};
+    box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i">${ic[e.kind]||'•'}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
+  }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load activity</div>';}
+}
 async function renderHome(){
   const main=$('#main');
   main.innerHTML=`
@@ -421,9 +454,12 @@ async function renderHome(){
       ${orbHTML('small')}
       <div class="htxt"><b id="hi">Hi! I'm KRC.</b><p id="hi2">Tap to chat, or add something below.</p></div>
     </div>
+    <div class="fleet" id="fleet"></div>
     <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
     <h2 class="sec">Today</h2>
     <div class="card" id="agenda"><div class="empty" style="padding:12px 0">loading…</div></div>
+    <h2 class="sec">What KRC’s been up to</h2>
+    <div class="card" id="activity"><div class="empty" style="padding:12px 0">loading…</div></div>
     <h2 class="sec">Focus</h2>
     <div class="card focus-card">
       <div class="focus-time" id="pomoTime">25:00</div>
@@ -445,11 +481,13 @@ async function renderHome(){
   $('#qBtn').onclick=async()=>{if(await createItem('tasks',$('#qAdd').value)){$('#qAdd').value='';}};
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
   loadAgenda();
+  loadActivity();
   try{const h=await api('/api/health');const r=h.relationship||{};
     const nm=cfg.name||r.user||'there';
     $('#hi').textContent=`Hi ${nm}!`;
     $('#hi2').textContent=`We’re on a ${r.streak_days||0}-day streak · ${r.interactions||0} chats.`;
     setDot(true);
+    renderFleet(h.devices||{});
     const today=new Date().toISOString().slice(0,10);
     const autoBrief=(localStorage.krcBriefDay!==today);
     if(!window._greeted){window._greeted=true;if(!autoBrief)kspeak(`Hi ${nm}. What can I help with?`);}
