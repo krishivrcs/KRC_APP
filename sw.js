@@ -1,5 +1,5 @@
 /* KRC companion service worker — shell cache + push */
-const CACHE = 'krc-app-v11';
+const CACHE = 'krc-app-v12';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
