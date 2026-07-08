@@ -133,6 +133,12 @@
   .act-row .act-i{font-size:15px;flex:0 0 auto;margin-top:1px;filter:saturate(.9)}
   .act-row .act-t{min-width:0}.act-row .act-t span{font-size:13.5px;display:block;line-height:1.45}
   .act-row .act-t small{color:var(--faint);font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
+  /* living face as the Home hero */
+  .home-face{display:flex;justify-content:center;margin:2px 0 0;cursor:pointer}
+  .home-face canvas{width:100%;max-width:320px;height:auto}
+  .home-greet{text-align:center;margin:0 0 8px}
+  .home-greet b{font-size:18px;font-weight:700;display:block}
+  .home-greet p{color:var(--dim);font-size:13px;margin-top:2px}
   .chip:hover{background:var(--glass2);border-color:var(--line2);transform:translateY(-1px)}
   .chip .ci{color:var(--cyan);display:flex}
 
@@ -450,10 +456,8 @@ async function loadActivity(){
 async function renderHome(){
   const main=$('#main');
   main.innerHTML=`
-    <div class="hero">
-      ${orbHTML('small')}
-      <div class="htxt"><b id="hi">Hi! I'm KRC.</b><p id="hi2">Tap to chat, or add something below.</p></div>
-    </div>
+    <div class="home-face" onclick="show('chat')" title="Tap to talk"><canvas id="face" width="360" height="210"></canvas></div>
+    <div class="home-greet"><b id="hi">Hi! I'm KRC.</b><p id="hi2">Tap the face to chat, or add something below.</p></div>
     <div class="fleet" id="fleet"></div>
     <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
     <h2 class="sec">Today</h2>
@@ -477,6 +481,7 @@ async function renderHome(){
       <button class="chip" onclick="listKind='reminders';show('lists')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
     </div>`;
   setupPomodoro();
+  setFaceEmo('idle');if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}   // living face is the Home hero
   if(!cfg.token){$('#hi').textContent='Connect KRC in You → Setup to begin.';return;}
   $('#qBtn').onclick=async()=>{if(await createItem('tasks',$('#qAdd').value)){$('#qAdd').value='';}};
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
@@ -1117,7 +1122,7 @@ function _renderFace(g,W,H,d,t){
   if(d.sym)_symF(g,d.sym,cx+gap*.62,cyE-eh*.85,W*.11,t);
 }
 function drawFace(){
-  const c=document.getElementById('face');if(!c||view!=='chat'){FACE.running=false;return;}
+  const c=document.getElementById('face');if(!c||(view!=='chat'&&view!=='home')){FACE.running=false;return;}
   const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now();
   if(FACE.emoUntil&&now>FACE.emoUntil){FACE.emo='idle';FACE.emoUntil=0;}
   let d=FACEP[FACE.emo]||FACEP.idle;
