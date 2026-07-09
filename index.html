@@ -1008,6 +1008,26 @@ const FACE={emo:'idle',speaking:false,listening:false,running:false,emoUntil:0};
    Source of truth: KRC_FACE_SPEC.md — kept in lock-step with Desk 1.85 + Nano. */
 const _EM='#FFB43E',_GL='#FF8E2B',_EY='#FFE9C4',_LV='#FF93B4',_RD='#FF5A4E',_DM='#B98A3E',_GN='#6FE0A0',_PL='#F3E7A6',_SK='#FFE49A',_HD='#FFF0D8';
 const _rmF=matchMedia('(prefers-reduced-motion:reduce)').matches;
+/* ===== Taby-style living-face enhancements (owner-requested 2026-07-09) =====
+   1. head RECOIL: hands in view -> face eases up ~5%H & shrinks ~8% to show them
+   2. word-sync LIPS: speech word boundaries drive the mouth (vowels->openness,
+      length->duration, syllable chatter, lips close between words)          */
+let _liftF=0;
+FACE.vOn=false;FACE.vOpen=0;FACE.vTarget=0;FACE.vUntil=0;
+function faceViseme(open,dur){FACE.vOn=true;FACE.speaking=true;FACE.vTarget=open;FACE.vUntil=performance.now()+dur;}
+function faceVisemeEnd(){FACE.vOn=false;FACE.vTarget=0;FACE.vOpen=0;FACE.speaking=false;}
+function applySpeakMouth(d,now){
+  d=Object.assign({},d);
+  if(FACE.vOn){
+    if(now>FACE.vUntil)FACE.vTarget=0.04;
+    FACE.vOpen+=(FACE.vTarget-FACE.vOpen)*0.38;
+    const o=Math.max(0.05,FACE.vOpen*(0.8+0.2*Math.sin(now/85)));
+    d.mouth=Object.assign({},d.mouth,{speak:false,open:o});
+  }else{
+    d.mouth=Object.assign({},d.mouth,{speak:true,open:Math.max(d.mouth.open||0,.3)});
+  }
+  return d;
+}
 const FACEP={
   idle:        {eyes:{m:'rect'}, mouth:{c:.3,w:.7}, glow:_EM, motion:'bob'},
   attention:   {eyes:{m:'rect',h:1.14,w:1.05,gy:-.08}, mouth:{c:.08,open:.12,w:.7}, glow:_EM, motion:'blink'},
@@ -1084,7 +1104,9 @@ function _handsF(g,W,H,gg,glow,t){const cx=W/2,r=W*.05;
 function _renderFace(g,W,H,d,t){
   g.clearRect(0,0,W,H);
   const glow=d.glow||_EM,tint=(d.eyes&&d.eyes.tint)||_EY,E=d.eyes||{};
-  let ew=W*.135*(E.w||1),eh=W*.185*(E.h||1);const gap=W*.30,cx=W/2,cyE=H*.37,myM=H*.60;
+  const wantL=d.hands?1:0;_liftF+=(wantL-_liftF)*0.1;const LF=_liftF<.01?0:_liftF; // head recoil
+  let ew=W*.135*(E.w||1)*(1-.08*LF),eh=W*.185*(E.h||1)*(1-.08*LF);
+  const gap=W*.30,cx=W/2,cyE=H*(.37-.05*LF),myM=H*(.60-.055*LF);
   let ox=0,oy=0,rot=(d.tilt||0)*Math.PI/180,gmul=1,eScale=1,gx=(E.gx||0),gy=(E.gy||0);
   if(!_rmF){const m=d.motion;
     if(m==='bob'){oy=Math.sin(t/900)*4;gmul=.8+.25*(.5+.5*Math.sin(t/1100));}
@@ -1126,7 +1148,7 @@ function drawFace(){
   const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now();
   if(FACE.emoUntil&&now>FACE.emoUntil){FACE.emo='idle';FACE.emoUntil=0;}
   let d=FACEP[FACE.emo]||FACEP.idle;
-  if(FACE.speaking){d=Object.assign({},d);d.mouth=Object.assign({},d.mouth,{speak:true,open:Math.max(d.mouth.open||0,.3)});}
+  if(FACE.speaking){d=applySpeakMouth(d,now);}
   if(FACE.listening){d=Object.assign({},d);d.ring=true;}
   _renderFace(g,W,H,d,now);
   requestAnimationFrame(drawFace);
@@ -1139,7 +1161,17 @@ loadVoices();if('speechSynthesis'in window)speechSynthesis.onvoiceschanged=loadV
 function pickVoice(){if(!_voices.length)loadVoices();const saved=localStorage.krcVoice;if(saved){const v=_voices.find(v=>v.name===saved);if(v)return v;}
   const score=v=>{let s=0;const n=(v.name+' '+v.lang).toLowerCase();if(/google uk english male/.test(n))s+=7;if(/en-gb|united kingdom|uk english/.test(n))s+=5;if(/\b(male|george|daniel|arthur|james|oliver|guy|ryan)\b/.test(n))s+=4;if(/\b(female|zira|hazel|susan|libby|sonia|aria|jenny)\b/.test(n))s-=4;if((v.lang||'').toLowerCase().startsWith('en'))s+=1;return s;};
   return _voices.slice().sort((a,b)=>score(b)-score(a))[0]||null;}
-function browserSpeak(text){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang;}else u.lang='en-GB';u.rate=0.96;u.pitch=0.9;FACE.speaking=true;u.onend=()=>{FACE.speaking=false;};u.onerror=()=>{FACE.speaking=false;};speechSynthesis.speak(u);}catch(e){}}
+function browserSpeak(text){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang;}else u.lang='en-GB';u.rate=0.96;u.pitch=0.9;FACE.speaking=true;
+  // word-sync lips: most desktop voices fire per-word boundary events; mobile voices
+  // that don't simply keep the classic speak animation (vOn stays false).
+  u.onboundary=ev=>{try{
+    if(ev.name&&ev.name!=='word')return;
+    const word=((text.slice(ev.charIndex||0)).match(/^[A-Za-zÀ-ɏ']+/)||[''])[0];
+    if(!word)return;
+    const vw=(word.match(/[aeiouyAEIOUY]/g)||[]).length||1;
+    faceViseme(Math.min(.62,.16+vw*.12),Math.min(900,(110+word.length*55)/(u.rate||1)));
+  }catch(e){}};
+  u.onend=()=>{faceVisemeEnd();};u.onerror=()=>{faceVisemeEnd();};speechSynthesis.speak(u);}catch(e){}}
 let _elAudio=null;
 async function elevenSpeak(text){try{FACE.speaking=true;const r=await fetch(cfg.url+'/api/tts',{method:'POST',headers:{'X-KRC-Token':cfg.token,'Content-Type':'application/json'},body:JSON.stringify({text})});if(!r.ok)throw new Error('tts '+r.status);const url=URL.createObjectURL(await r.blob());try{if(_elAudio)_elAudio.pause();}catch(e){}_elAudio=new Audio(url);_elAudio.onended=()=>{FACE.speaking=false;URL.revokeObjectURL(url);};_elAudio.onerror=()=>{FACE.speaking=false;};await _elAudio.play();}catch(e){FACE.speaking=false;browserSpeak(text);}}
 function speak(text){if(!text)return;if(cfg.eleven)elevenSpeak(text);else browserSpeak(text);}
