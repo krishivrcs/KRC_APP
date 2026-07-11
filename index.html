@@ -1079,16 +1079,21 @@ function _mouthF(g,cx,my,W,mo,glow,t){let mw=W*.085*(mo.w||1),open=mo.open||0;co
   if(open<.06){const dip=curve*mw*.6;if(mo.smirk){g.beginPath();g.moveTo(cx-mw*.8,my+mw*.14);g.quadraticCurveTo(cx,my,cx+mw*.9,my-mw*.36);g.stroke();}else if(mo.wavy){g.beginPath();for(let k=0;k<=6;k++){const xx=cx-mw*.8+(mw*1.6)*(k/6),yy=my+((k%2)?1:-1)*mw*.2;if(k===0)g.moveTo(xx,yy);else g.lineTo(xx,yy);}g.stroke();}else{const end=(curve<0?-curve*mw*.35:0);g.beginPath();g.moveTo(cx-mw,my-end);g.quadraticCurveTo(cx,my+dip,cx+mw,my-end);g.stroke();}if(mo.tongue)_tongueF(g,cx,my+Math.max(dip*.6,lw*.3),W,mo.tongue,mo.tongueOut);}
   else{const ow=mw*(1+open*.15),oh=open*W*.085,topY=my-curve*ow*.3;g.beginPath();g.moveTo(cx-ow,topY);g.quadraticCurveTo(cx,topY-(curve>0?oh*.12:0),cx+ow,topY);g.quadraticCurveTo(cx+trem,my+oh,cx-ow,topY);g.closePath();g.save();g.shadowBlur=0;g.fillStyle='#2A1210';g.fill();g.restore();g.stroke();if(mo.teeth){g.save();g.clip();g.shadowBlur=0;g.fillStyle='#FFF4E6';g.fillRect(cx-ow,topY-1,ow*2,Math.max(oh*.42,lw));if(mo.grit){g.strokeStyle=_rgF('#C9B49A',.7);g.lineWidth=Math.max(1,W*.005);for(let gg=-2;gg<=2;gg++){const gx=cx+gg*ow*.4;g.beginPath();g.moveTo(gx,my-oh);g.lineTo(gx,my+oh);g.stroke();}}g.restore();}if(mo.tongue)_tongueF(g,cx,my+oh*.45,W,mo.tongue,mo.tongueOut);}
   g.restore();}
-function _handF(g,x,y,r,pose,glow,t,phase,flip){g.save();g.translate(x,y);if(!_rmF)g.translate(0,Math.sin(t/300+(phase||0))*r*.12);if(flip)g.scale(-1,1);g.fillStyle=_HD;const pw=r*1.42,pTop=-r*.12,pBot=r*.74,fw=r*.31,fh=r*.92;
-  function cap(cxx,cyy,w,h,rot){g.save();g.translate(cxx,cyy);if(rot)g.rotate(rot);_rp(g,[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]],w/2);g.fill();g.restore();}
+/* Hands v3 (owner 2026-07-09): HOLLOW — background fill + clear cream borderlines around
+   the whole hand incl. every finger. Palm first; digits on top erase the palm line behind them. */
+function _handF(g,x,y,r,pose,glow,t,phase,flip){g.save();g.translate(x,y);if(!_rmF)g.translate(0,Math.sin(t/300+(phase||0))*r*.12);if(flip)g.scale(-1,1);
+  const pw=r*1.42,pTop=-r*.12,pBot=r*.74,fw=r*.31,fh=r*.92,lw=Math.max(1.6,r*.16);
+  g.fillStyle='#0a0b10';g.strokeStyle=_HD;g.lineWidth=lw;g.lineJoin='round';g.lineCap='round';
   g.shadowColor=_rgF(glow,.75);g.shadowBlur=r*.55;
+  function cap(cxx,cyy,w,h,rot){g.save();g.translate(cxx,cyy);if(rot)g.rotate(rot);_rp(g,[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]],w/2);g.fill();g.stroke();g.restore();}
   function fingers(hs){for(let i=0;i<4;i++){const fx=(-1.5+i)*fw*1.12;cap(fx,pTop-hs[i]*.5,fw,hs[i]);}}
+  _rp(g,[[-pw/2,pTop],[pw/2,pTop],[pw/2,pBot],[-pw/2,pBot]],r*.5);g.fill();g.stroke();
   if(pose==='open'){fingers([fh,fh*1.06,fh,fh*.86]);cap(-pw*.55,pBot*.24,fw,fh*.82,-.95);}
   else if(pose==='fist'){fingers([fh*.42,fh*.42,fh*.42,fh*.42]);cap(-pw*.5,pBot*.4,fw,fh*.55,-.55);}
   else if(pose==='thumb'){fingers([fh*.4,fh*.4,fh*.4,fh*.4]);cap(pw*.52,pTop-fh*.35,fw,fh*.95,.45);}
   else if(pose==='point'){for(let i=0;i<4;i++){const fx=(-1.5+i)*fw*1.12,hh=(i===0?fh:fh*.4);cap(fx,pTop-hh*.5,fw,hh);}cap(-pw*.5,pBot*.4,fw,fh*.55,-.55);}
   else if(pose==='peace'){for(let i=0;i<4;i++){const fx=(-1.5+i)*fw*1.12,up=(i<2),hh=(up?fh:fh*.4),tl=(up?(i===0?-.22:.22):0),dx=(up?(i===0?-fw*.35:fw*.35):0);cap(fx+dx,pTop-hh*.5,fw,hh,tl);}cap(-pw*.5,pBot*.4,fw,fh*.55,-.55);}
-  g.shadowBlur=r*.5;_rp(g,[[-pw/2,pTop],[pw/2,pTop],[pw/2,pBot],[-pw/2,pBot]],r*.5);g.fill();g.restore();}
+  g.restore();}
 function _handsF(g,W,H,gg,glow,t){const cx=W/2,r=W*.05;
   if(gg==='cheer'){_handF(g,cx-W*.34,H*.72,r,'open',glow,t,0,true);_handF(g,cx+W*.34,H*.72,r,'open',glow,t,1.5,false);}
   else if(gg==='wave'){const a=_rmF?.25:Math.sin(t/150)*.6;g.save();g.translate(cx+W*.35,H*.64);g.rotate(a);_handF(g,0,0,r,'open',glow,t,0,false);g.restore();}
