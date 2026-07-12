@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <meta name="theme-color" content="#0a0b10"/>
 <title>KRC</title>
+<link rel="manifest" href="./manifest.json"/>
+<link rel="icon" href="./icon-192.png"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,500;6..12,600;6..12,700;6..12,800&family=Varela+Round&display=swap" rel="stylesheet"/>
@@ -182,7 +185,7 @@
   .msg.you{background:var(--grad);color:#0a0c18;margin-left:auto;border-bottom-right-radius:6px;font-weight:600}
   .msg.krc{background:var(--glass);border:1px solid var(--line);border-bottom-left-radius:6px}
   .msg.sys{background:none;color:var(--faint);font-size:12.5px;text-align:center;max-width:100%}
-  .composer{display:flex;gap:9px;align-items:center;padding:7px 8px 7px 16px;position:fixed;bottom:92px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:536px;z-index:39;
+  .composer{display:flex;gap:9px;align-items:center;padding:7px 8px 7px 16px;position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:536px;z-index:39;
     background:rgba(14,17,36,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:30px;box-shadow:var(--sh)}
   .composer input{flex:1;background:transparent;border:0;color:var(--txt);padding:10px 4px;font-size:16px;outline:none}
   .composer .cbtn{background:var(--grad);color:#0a0c18;border-radius:50%;width:44px;height:44px;font-size:18px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
@@ -213,7 +216,7 @@
   .status{margin-top:12px;color:var(--dim);font-size:13px;white-space:pre-wrap;line-height:1.5}
 
   /* bottom nav */
-  nav{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 24px);max-width:536px;display:flex;justify-content:space-around;gap:3px;padding:9px 8px;z-index:40;
+  nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:536px;display:flex;justify-content:space-around;gap:3px;padding:9px 8px;z-index:40;
     background:rgba(14,17,36,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:26px;box-shadow:var(--sh)}
   nav button{flex:1;color:var(--faint);padding:7px 2px;font-size:10.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:.22s}
   nav button svg{width:21px;height:21px}
@@ -278,8 +281,10 @@ const cfg={
 };
 // One-scan setup from the box QR: ?token=XXX&url=YYY  (re-applied every launch — iOS PWA isolation)
 (function(){try{const q=new URLSearchParams(location.search);
-  if(q.get('token'))cfg.token=q.get('token');
-  if(q.get('url'))cfg.url=q.get('url');
+  let hadQ=false;
+  if(q.get('token')){cfg.token=q.get('token');hadQ=true;}
+  if(q.get('url')){cfg.url=q.get('url');hadQ=true;}
+  if(hadQ)history.replaceState(null,'',location.pathname+location.hash);   // don't leave the token sitting in the URL bar/history
 }catch(e){}})();
 
 async function api(path,opts={}){
@@ -301,6 +306,9 @@ async function api(path,opts={}){
     :'Something went wrong (HTTP '+r.status+').'));
   return r.json();
 }
+// Same hard-timeout guarantee as api(), for the handful of raw fetch() calls (blobs/streams) that
+// bypass api() — nothing here may hang forever on a Render cold start or a dead network.
+function fetchT(url,opts,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);return fetch(url,Object.assign({},opts,{signal:c.signal})).finally(()=>clearTimeout(t));}
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function setDot(on){const d=$('#dot');if(d)d.classList.toggle('on',!!on);}
 function kspeak(t){if(cfg.speak&&t)speak(t);}
@@ -346,7 +354,13 @@ async function onbConnect(){
   try{const h=await api('/api/health');setDot(true);
     const u=(h.relationship&&h.relationship.user)||'';if(u&&!cfg.name)cfg.name=u;
     st.innerHTML='✓ Connected to your KRC brain!';setTimeout(nextOnb,650);
-  }catch(e){st.innerHTML='⚠ Couldn’t reach KRC ('+e.message+'). Check the address/token — or continue and fix it in You → Setup.';}
+  }catch(e){
+    // 401 here means the token itself is wrong — the generic "add it in You → Setup" line makes
+    // no sense mid-onboarding (they're staring at the token field already), so say it plainly.
+    st.innerHTML=(e.message==='Not paired yet — add your token in You → Setup.')
+      ?'⚠ That token didn’t work — double-check it or re-scan your QR code.'
+      :'⚠ Couldn’t reach KRC ('+e.message+'). Check the address/token — or continue and fix it in You → Setup.';
+  }
 }
 function step_wifi(){
   $('#onbCard').innerHTML=`
@@ -729,28 +743,35 @@ async function pcRefreshShot(){
   await pcShotInto('#pcLiveShot','#pcShotHint');
   if(b){b.disabled=false;b.textContent='🔄 Refresh screen';}
 }
+let _pcBusy=false;   // in-flight lock: mirrors _chatBusy — no double-tap firing duplicate real PC actions
 // Type the user's answer into the focused window, press Enter, then show the fresh result.
 async function pcAnswer(text){
   if(!cfg.token){pcCard('Connect KRC first (You → Setup).');return;}
+  if(_pcBusy)return;
+  _pcBusy=true;
   const card=pcCard('⏳ Answering: <b>'+escapeHtml(text)+'</b> …');
   try{
     const d=await api('/krc',{method:'POST',body:JSON.stringify({message:'answer '+text+' and submit'})});
     setDot(true);const reply=d.reply||'Done.';if(card)card.textContent=reply;kspeak(reply);
     setTimeout(pcRefreshShot,1500); // let the PC settle, then show the result
   }catch(e){if(card)card.textContent='⚠ '+e.message+' — check your connection.';setDot(false);}
+  finally{_pcBusy=false;}
 }
 async function pcStatus(){
   const nm=$('#pcName'),sub=$('#pcSub'),dot=$('#pcDot');
   if(!cfg.token){if(nm)nm.textContent='Not connected';if(sub)sub.textContent='Connect KRC in You → Setup first.';return;}
-  try{const h=await api('/api/health');setDot(true);const on=!!(h.pc_online||h.screen);
+  try{const h=await api('/api/health');setDot(true);const on=!!(h.devices&&h.devices.pc&&h.devices.pc.online);
     if(dot)dot.classList.toggle('on',on);
     if(nm)nm.textContent=on?'PC connected ✓':'PC offline';
-    if(sub)sub.textContent=on?(h.pc_title?('Active: '+h.pc_title):'Ready for your commands.'):'Open KRC on your PC (the desktop agent) to control it from here.';
+    const pcTitle=h.devices&&h.devices.pc&&h.devices.pc.title;
+    if(sub)sub.textContent=on?(pcTitle?('Active: '+pcTitle):'Ready for your commands.'):'Open KRC on your PC (the desktop agent) to control it from here.';
   }catch(e){setDot(false);if(nm)nm.textContent='Offline';if(sub)sub.textContent='Couldn’t reach KRC — check You → Setup.';}
 }
 function pcCard(html){const out=$('#pcOut');if(!out)return null;const c=document.createElement('div');c.className='msg krc';c.style.maxWidth='100%';c.style.marginTop='0';c.innerHTML=html;out.insertBefore(c,out.firstChild);return c;}
 async function pcDo(cmd){
   if(!cfg.token){pcCard('Connect KRC first (You → Setup).');return;}
+  if(_pcBusy)return;
+  _pcBusy=true;
   const card=pcCard('⏳ <b>'+escapeHtml(cmd)+'</b> …');
   try{const d=await api('/krc',{method:'POST',body:JSON.stringify({message:cmd})});
     const reply=d.reply||'Done.';setDot(true);
@@ -759,11 +780,12 @@ async function pcDo(cmd){
     if(d.file)pcShowMedia(d.file,'file',d.file_name||'file');
     pcStatus();
   }catch(e){if(card)card.textContent='⚠ '+e.message+' — check your connection.';setDot(false);}
+  finally{_pcBusy=false;}
 }
-async function pcFetchBlob(path){for(let i=0;i<6;i++){try{const u=cfg.url+path+(path.includes('?')?'&':'?')+'t='+Date.now();const r=await fetch(u,{headers:{'X-KRC-Token':cfg.token}});if(r.ok)return await r.blob();if(r.status!==404)return null;}catch(e){return null;}await new Promise(res=>setTimeout(res,1500));}return null;}
+async function pcFetchBlob(path){for(let i=0;i<6;i++){try{const u=cfg.url+path+(path.includes('?')?'&':'?')+'t='+Date.now();const r=await fetchT(u,{headers:{'X-KRC-Token':cfg.token}},30000);if(r.ok)return await r.blob();if(r.status!==404)return null;}catch(e){return null;}await new Promise(res=>setTimeout(res,1500));}return null;}
 async function pcShowMedia(path,type,name){
   const blob=await pcFetchBlob(path);if(!blob)return;const url=URL.createObjectURL(blob);const out=$('#pcOut');if(!out)return;
-  if(type==='shot'){const card=document.createElement('div');card.className='card';card.style.marginTop='10px';const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;border-radius:12px;display:block;cursor:zoom-in';img.onclick=()=>window.open(url,'_blank');card.appendChild(img);out.insertBefore(card,out.firstChild);}
+  if(type==='shot'){const card=document.createElement('div');card.className='card';card.style.marginTop='10px';const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;border-radius:12px;display:block;cursor:zoom-in';img.onclick=()=>window.open(url,'_blank');card.appendChild(img);out.insertBefore(card,out.firstChild);setTimeout(()=>URL.revokeObjectURL(url),60000);}   // free the blob after viewing window (repeated screenshots would otherwise leak)
   else{const card=document.createElement('div');card.className='msg krc';card.style.cssText='max-width:100%;cursor:pointer;display:flex;align-items:center;gap:8px';card.innerHTML='📎 <b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';card.onclick=async()=>{try{const file=new File([blob],name,{type:blob.type||'application/octet-stream'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return;}}catch(e){}const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();};out.insertBefore(card,out.firstChild);}
 }
 
@@ -817,7 +839,7 @@ async function seeDescribe(robot){
     if(!robot){
       const blob=await seeCaptureBlob();
       if(!blob){out.innerHTML='<div class="msg krc" style="max-width:100%">Start the camera first, or use the robot’s eye.</div>';return;}
-      const r=await fetch(cfg.url+'/api/vision',{method:'POST',headers:{'X-KRC-Token':cfg.token,'Content-Type':'image/jpeg'},body:blob});
+      const r=await fetchT(cfg.url+'/api/vision',{method:'POST',headers:{'X-KRC-Token':cfg.token,'Content-Type':'image/jpeg'},body:blob},45000);
       if(!r.ok)throw new Error('vision '+r.status);
     }
     const d=await api('/api/vision/describe?q='+encodeURIComponent(q));
@@ -968,11 +990,12 @@ async function send(){
   finally{_chatBusy=false;if(btn)btn.disabled=false;voiceOn=false;if(inp)inp.focus();}
 }
 async function showShot(path){
-  try{let r=null;for(let i=0;i<5;i++){r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});if(r.ok)break;if(r.status!==404)return;await new Promise(res=>setTimeout(res,1500));}
+  try{let r=null;for(let i=0;i<5;i++){r=await fetchT(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}},30000);if(r.ok)break;if(r.status!==404)return;await new Promise(res=>setTimeout(res,1500));}
     if(!r||!r.ok)return;const url=URL.createObjectURL(await r.blob());
     const d=document.createElement('div');d.className='msg krc';d.style.maxWidth='100%';
     const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;border-radius:12px;display:block;cursor:zoom-in';img.onclick=()=>window.open(url,'_blank');
     d.appendChild(img);$('#main').appendChild(d);$('#main').scrollTop=$('#main').scrollHeight;
+    setTimeout(()=>URL.revokeObjectURL(url),60000);   // free the blob after viewing window (repeated screenshots would otherwise leak)
   }catch(e){}
 }
 async function showFile(path,name){
@@ -980,7 +1003,7 @@ async function showFile(path,name){
   d.innerHTML='📎 <b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';
   const setS=s=>{const sp=d.querySelector('span');if(sp)sp.textContent='— '+s;};
   d.onclick=async()=>{setS('fetching…');let blob;
-    try{const r=await fetch(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}});if(!r.ok){setS('failed ('+r.status+')');return;}blob=await r.blob();}catch(e){setS('failed — check connection');return;}
+    try{const r=await fetchT(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}},30000);if(!r.ok){setS('failed ('+r.status+')');return;}blob=await r.blob();}catch(e){setS('failed — check connection');return;}
     try{const file=new File([blob],name,{type:blob.type||'application/octet-stream'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});setS('saved ✓');return;}}catch(e){if(e&&e.name==='AbortError'){setS('tap to save');return;}}
     try{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);setS('saved ✓');return;}catch(e){}
     try{window.open(URL.createObjectURL(blob),'_blank');setS('opened');}catch(e){setS('failed');}
@@ -1178,7 +1201,7 @@ function browserSpeak(text){try{speechSynthesis.cancel();const u=new SpeechSynth
   }catch(e){}};
   u.onend=()=>{faceVisemeEnd();};u.onerror=()=>{faceVisemeEnd();};speechSynthesis.speak(u);}catch(e){}}
 let _elAudio=null;
-async function elevenSpeak(text){try{FACE.speaking=true;const r=await fetch(cfg.url+'/api/tts',{method:'POST',headers:{'X-KRC-Token':cfg.token,'Content-Type':'application/json'},body:JSON.stringify({text})});if(!r.ok)throw new Error('tts '+r.status);const url=URL.createObjectURL(await r.blob());try{if(_elAudio)_elAudio.pause();}catch(e){}_elAudio=new Audio(url);_elAudio.onended=()=>{FACE.speaking=false;URL.revokeObjectURL(url);};_elAudio.onerror=()=>{FACE.speaking=false;};await _elAudio.play();}catch(e){FACE.speaking=false;browserSpeak(text);}}
+async function elevenSpeak(text){try{FACE.speaking=true;const r=await fetchT(cfg.url+'/api/tts',{method:'POST',headers:{'X-KRC-Token':cfg.token,'Content-Type':'application/json'},body:JSON.stringify({text})},20000);if(!r.ok)throw new Error('tts '+r.status);const url=URL.createObjectURL(await r.blob());try{if(_elAudio)_elAudio.pause();}catch(e){}_elAudio=new Audio(url);_elAudio.onended=()=>{FACE.speaking=false;URL.revokeObjectURL(url);};_elAudio.onerror=()=>{FACE.speaking=false;};await _elAudio.play();}catch(e){FACE.speaking=false;browserSpeak(text);}}
 function speak(text){if(!text)return;if(cfg.eleven)elevenSpeak(text);else browserSpeak(text);}
 
 /* ---------- push ---------- */
@@ -1200,7 +1223,7 @@ async function testPush(){try{const r=await api('/api/push/test');pushStatus(r.s
 
 /* ---------- settings sync ---------- */
 async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if(view==='profile')renderProfile();}catch(e){}}
-async function syncSettingsUp(){if(!cfg.token)return;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||''}})});}catch(e){}}
+async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||''}})});return true;}catch(e){return false;}}
 
 /* ---------- LISTS (segmented) ---------- */
 function renderLists(){
@@ -1305,7 +1328,19 @@ function renderProfile(){
   $('#installHintP').textContent=installHint();
   $('#installRow').onclick=async()=>{if(!(await installApp()))$('#installHintP').textContent=installHint();};
   $('#setupRow').onclick=startOnboarding;
-  $('#saveBtn').onclick=()=>{cfg.name=$('#sName').value.trim();cfg.url=$('#sUrl').value.trim();cfg.token=$('#sTok').value.trim();localStorage.krcVoice=$('#setVoice').value;$('#sStatus').textContent='Saved ✓ · syncing to all devices…';syncSettingsUp().then(()=>{$('#sStatus').textContent='Saved ✓ · synced to all your devices';});api('/api/health').then(()=>setDot(true)).catch(()=>setDot(false));};
+  $('#saveBtn').onclick=async()=>{
+    // Local save always happens regardless of connectivity — but the status line must tell the
+    // truth: "synced" only after the cloud actually confirms it (bad token/offline cloud used to
+    // still show "Saved ✓ · synced to all your devices", which was a lie).
+    cfg.name=$('#sName').value.trim();cfg.url=$('#sUrl').value.trim();cfg.token=$('#sTok').value.trim();localStorage.krcVoice=$('#setVoice').value;
+    $('#sStatus').textContent='Saved locally · checking connection…';
+    let healthOk=false;
+    try{await api('/api/health');healthOk=true;setDot(true);}catch(e){setDot(false);}
+    const syncOk=await syncSettingsUp();
+    $('#sStatus').textContent=(healthOk&&syncOk)
+      ?'Saved ✓ · synced to all your devices'
+      :'Saved locally, but couldn’t reach KRC — check your token/URL.';
+  };
 }
 
 /* ---------- PWA install ---------- */
