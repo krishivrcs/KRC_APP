@@ -8,13 +8,14 @@
 <link rel="manifest" href="./manifest.json"/>
 <link rel="icon" href="./icon-192.png"/>
 <link rel="apple-touch-icon" href="./icon-192.png"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,500;6..12,600;6..12,700;6..12,800&family=Varela+Round&display=swap" rel="stylesheet"/>
 <style>
   :root{
     /* v2 Obsidian x Ember Gold — one warm accent on a deep neutral-obsidian ground */
     --bg:#0a0b10; --bg2:#0e0f16;
+    /* NOTE: --violet/--blue/--cyan are legacy names from a prior palette; all three now hold
+       Ember-Gold amber/gold values (NOT actual violet/blue/cyan hues). Renaming is deferred —
+       too many call sites to safely touch in one pass — but treat them as semantic accents:
+       --violet ~= accent-2 (used for focus rings/bullets), --cyan ~= accent-3 (used for icon tint/links). */
     --violet:#FFB43E; --blue:#FF8E2B; --cyan:#FFC24A; --warm:#FFB43E; --pink:#FF93B4;
     --grad:linear-gradient(135deg,#FFC24A,#FF8E2B);
     --grad-warm:linear-gradient(135deg,#FFB43E,#FF93B4);
@@ -23,11 +24,15 @@
     --txt:#F3F0EA; --dim:#A69E90; --faint:#6E685C;
     --good:#54d6a0; --danger:#ff6b7d; --warn:#ffc266;
     --r:20px; --r2:16px; --sh:0 12px 40px rgba(0,0,0,.5);
+    /* System font stack — no CDN fonts (offline-first constraint). Looks intentional cross-platform:
+       macOS/iOS -> SF Pro, Windows -> Segoe UI, Android/Linux -> Roboto/system-ui. */
+    --font-ui:-apple-system,"Segoe UI",Roboto,system-ui,"Helvetica Neue",Arial,sans-serif;
+    --font-round:"Segoe UI Rounded","SF Pro Rounded",ui-rounded,"Varela Round",var(--font-ui);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   html,body{height:100%}
   body{
-    font-family:'Nunito Sans',-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;
+    font-family:var(--font-ui);
     color:var(--txt);overscroll-behavior:none;font-size:15px;line-height:1.5;
     background:
       radial-gradient(120% 75% at 50% -8%, #17130b 0%, transparent 55%),
@@ -36,7 +41,7 @@
       var(--bg);
     background-attachment:fixed;
   }
-  h1,h2,h3,.brandfont{font-family:'Varela Round',var(--bg);letter-spacing:.01em}
+  h1,h2,h3,.brandfont{font-family:var(--font-round);letter-spacing:.01em}
   button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
   input,select,textarea{font-family:inherit}
   ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
@@ -146,7 +151,7 @@
   .chip .ci{color:var(--cyan);display:flex}
 
   .focus-card{text-align:center}
-  .focus-time{font-size:52px;font-weight:700;letter-spacing:.01em;font-family:'Varela Round'}
+  .focus-time{font-size:52px;font-weight:700;letter-spacing:.01em;font-family:var(--font-round)}
   .focus-lbl{color:var(--dim);font-size:13px;margin-top:2px}
   .focus-btns{display:flex;gap:10px;justify-content:center;margin-top:14px}
   .pill-btn{background:var(--glass);border:1px solid var(--line);color:var(--txt);border-radius:13px;padding:10px 18px;font-size:14px;font-weight:700;transition:.2s}
@@ -196,12 +201,14 @@
   .typing i:nth-child(2){animation-delay:.2s}
   .typing i:nth-child(3){animation-delay:.4s}
   @keyframes tblink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
-  .msg.krc pre.code{background:#0b1120;border:1px solid var(--glass2);border-radius:10px;padding:10px 12px;margin:7px 0;overflow-x:auto;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45}
+  .msg.krc pre.code{background:var(--bg2);border:1px solid var(--glass2);border-radius:10px;padding:10px 12px;margin:7px 0;overflow-x:auto;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45}
   .msg.krc code{background:var(--glass2);padding:1px 5px;border-radius:5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em}
   .msg.krc a{color:var(--cyan);word-break:break-word}
   .copybtn{display:inline-block;margin-top:9px;background:var(--glass2);color:var(--faint);border:0;border-radius:8px;padding:4px 11px;font-size:12px;cursor:pointer}
   .copybtn:active{transform:scale(.96)}
-  #offlineBar{display:none;position:fixed;top:0;left:0;right:0;z-index:60;background:#7a1f22;color:#ffecec;text-align:center;font-size:12.5px;font-weight:600;padding:6px 10px;letter-spacing:.2px}
+  /* In normal flow (NOT position:fixed) — it's already the DOM sibling between header and main,
+     so showing it naturally pushes main down and can never overlap the logo/status dot. */
+  #offlineBar{display:none;flex:0 0 auto;background:var(--danger);color:#ffecec;text-align:center;font-size:12.5px;font-weight:600;padding:6px 10px;letter-spacing:.2px}
   #offlineBar.show{display:block}
 
   /* settings */
@@ -312,6 +319,54 @@ function fetchT(url,opts,ms){const c=new AbortController();const t=setTimeout(()
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function setDot(on){const d=$('#dot');if(d)d.classList.toggle('on',!!on);}
 function kspeak(t){if(cfg.speak&&t)speak(t);}
+// Monochrome stroke-SVG icon set — matches the nav/chip icons already in the shell. Used to replace
+// raw OS emoji across the app (see item 5 of the icon pass) so the surface reads as one cohesive
+// premium icon system instead of mixed bespoke-SVG + platform emoji.
+function svgIcon(name,size){
+  size=size||20;
+  const P={
+    camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.4"/>',
+    eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 3.6 9A14 14 0 0 1 12 21a14 14 0 0 1-3.6-9A14 14 0 0 1 12 3z"/>',
+    'play-pause':'<path d="M6 4l14 8-14 8V4z"/>',
+    'skip-forward':'<path d="M5 5l9 7-9 7V5z"/><path d="M18 5v14"/>',
+    'volume-up':'<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/>',
+    'volume-down':'<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
+    clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/>',
+    save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+    share:'<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 13.4l7.2 4.1M15.6 6.5l-7.2 4.1"/>',
+    refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+    mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    hourglass:'<path d="M6 2h12M6 22h12M6 2c0 5 4 6 6 8-2 2-6 3-6 8M18 2c0 5-4 6-6 8 2 2 6 3 6 8"/>',
+    news:'<rect x="3" y="4" width="14" height="16" rx="1.5"/><path d="M7 8h6M7 12h6M7 16h4M17 8h4v10a2 2 0 0 1-2 2h-2"/>',
+    bulb:'<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+    chat:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>',
+    monitor:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    sparkle:'<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+    minimize:'<path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/>',
+    trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/><path d="M10 11v6M14 11v6"/>',
+    crystal:'<circle cx="12" cy="10" r="7"/><path d="M6 21h12M9 21l1-4M15 21l-1-4"/>',
+    brain:'<path d="M12 5a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 0 3 3 0 0 0 2-5 3 3 0 0 0-2-5 3 3 0 0 0-3-3z"/>',
+    stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    robot:'<rect x="5" y="8" width="14" height="10" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="13" r="1.3"/><circle cx="15" cy="13" r="1.3"/><path d="M9 17h6"/>',
+    // Brain world-map category glyphs (replace the MEMOJI emoji so the section headers match the app's SVG system)
+    calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',
+    note:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+    layers:'<path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="M3 13l9 5 9-5M3 16.5l9 5 9-5"/>',
+    target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
+    pin:'<path d="M12 21s7-6.3 7-11a7 7 0 0 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    tag:'<path d="M20.5 13.5 13 21a2 2 0 0 1-2.8 0L3 13.8V4h9.8l7.7 7.7a2 2 0 0 1 0 2.8z"/><circle cx="8.5" cy="8.5" r="1.6"/>',
+    check:'<path d="M20 6 9 17l-5-5"/>',
+    box:'<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+    tv:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 3l4 4 4-4"/>',
+    users:'<circle cx="9" cy="9" r="3.2"/><path d="M3 19c0-3 3-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.2a3.2 3.2 0 0 1 0 6M18 14.5c2 .6 3 1.9 3 4.5"/>',
+    building:'<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/>',
+    paperclip:'<path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10 17a1.6 1.6 0 0 1-2.3-2.3l7.6-7.6"/>'
+  };
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:0 0 auto">'+(P[name]||'')+'</svg>';
+}
 
 /* ===================== ONBOARDING ===================== */
 const orbHTML=(cls='')=>`<div class="orb ${cls}"><div class="halo"></div><div class="ball"></div><div class="eyes"><div class="eye"></div><div class="eye"></div></div></div>`;
@@ -351,8 +406,11 @@ async function onbConnect(){
   const st=$('#oStat');
   if(!cfg.token){st.innerHTML='⚠ Enter your token (or scan the box QR).';return;}
   st.innerHTML='Connecting to your KRC…';
-  try{const h=await api('/api/health');setDot(true);
-    const u=(h.relationship&&h.relationship.user)||'';if(u&&!cfg.name)cfg.name=u;
+  try{
+    // Success MUST require a TOKEN-GATED call to succeed — /api/health never 401s, so a wrong
+    // token would still show "Connected" if we gated on that. /api/list/status requires auth.
+    await api('/api/list/status');setDot(true);
+    try{const h=await api('/api/health');const u=(h.relationship&&h.relationship.user)||'';if(u&&!cfg.name)cfg.name=u;}catch(e2){}
     st.innerHTML='✓ Connected to your KRC brain!';setTimeout(nextOnb,650);
   }catch(e){
     // 401 here means the token itself is wrong — the generic "add it in You → Setup" line makes
@@ -463,8 +521,8 @@ async function loadActivity(){
   if(!cfg.token){box.innerHTML='<div class="empty" style="padding:12px 0">Connect KRC to see its activity.</div>';return;}
   try{const a=await api('/api/activity?limit=8');const ev=(a&&a.events)||[];
     if(!ev.length){box.innerHTML='<div class="empty" style="padding:12px 0">Nothing yet — KRC logs what it does across your devices here.</div>';return;}
-    const ic={reminder:'⏰',news:'📰',insight:'💡',brief:'📋',reactive:'💬',screen:'🖥️',vision:'👁️',companion:'✨'};
-    box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i">${ic[e.kind]||'•'}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
+    const ic={reminder:'bell',news:'news',insight:'bulb',brief:'clipboard',reactive:'chat',screen:'monitor',vision:'eye',companion:'sparkle'};
+    box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i" style="color:var(--cyan);display:flex">${svgIcon(ic[e.kind]||'sparkle',15)}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
   }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load activity</div>';}
 }
 async function renderHome(){
@@ -491,7 +549,7 @@ async function renderHome(){
       <button class="chip" onclick="show('pc')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>Control PC</button>
       <button class="chip" onclick="show('see')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>KRC’s eyes</button>
       <button class="chip" onclick="show('gest')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 8V6a2 2 0 0 0-4 0v8a6 6 0 0 0 12 0v-3"/></svg></span>Gestures</button>
-      <button class="chip" onclick="show('brain')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg></span>Daily brief</button>
+      <button class="chip" onclick="goDailyBrief()"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg></span>Daily brief</button>
       <button class="chip" onclick="listKind='reminders';show('lists')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
     </div>`;
   setupPomodoro();
@@ -521,15 +579,16 @@ async function loadAgenda(){
     const goals=(gl.rows||[]).filter(x=>!x.done);
     const hd=t=>`<div class="agenda-h">${t}</div>`;
     let h='';
-    if(rems.length)h+=hd('⏰ DUE TODAY')+rems.slice(0,6).map(x=>`<div class="agenda-row"><span class="tm">${new Date(x.due*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>${escapeHtml(x.text)}</span></div>`).join('');
-    if(tasks.length)h+=hd('✓ TASKS')+tasks.slice(0,6).map(x=>`<div style="padding:6px 0">• ${escapeHtml(x.text)}</div>`).join('');
-    if(goals.length)h+=hd('✦ GOALS')+goals.slice(0,4).map(x=>`<div style="padding:6px 0">• ${escapeHtml(x.text)}</div>`).join('');
+    if(rems.length)h+=hd('<span style="display:inline-flex;vertical-align:-3px;margin-right:4px">'+svgIcon('bell',13)+'</span>DUE TODAY')+rems.slice(0,6).map(x=>`<div class="agenda-row"><span class="tm">${new Date(x.due*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>${escapeHtml(x.text)}</span></div>`).join('');
+    if(tasks.length)h+=hd('<span style="display:inline-flex;vertical-align:-3px;margin-right:4px">'+svgIcon('check',13)+'</span>TASKS')+tasks.slice(0,6).map(x=>`<div style="padding:6px 0">• ${escapeHtml(x.text)}</div>`).join('');
+    if(goals.length)h+=hd('<span style="display:inline-flex;vertical-align:-3px;margin-right:4px">'+svgIcon('target',13)+'</span>GOALS')+goals.slice(0,4).map(x=>`<div style="padding:6px 0">• ${escapeHtml(x.text)}</div>`).join('');
     box.innerHTML=h||'<div class="empty" style="padding:12px 0">Nothing scheduled — enjoy the calm.</div>';
   }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load agenda</div>';}
 }
 
 /* ---------- BRAIN (second brain) ---------- */
-const MEMOJI={project:'🛠',goal:'✦',person:'👤',place:'📍',topic:'🏷',task:'✓',event:'📅',thing:'📦',series:'📺',team:'👥',company:'🏢'};
+// Entity-type → svgIcon glyph name (bespoke SVG, not emoji — keeps the Brain headers cohesive with the app icon system)
+const MEMOJI={project:'layers',goal:'target',person:'user',place:'pin',topic:'tag',task:'check',event:'calendar',thing:'box',series:'tv',team:'users',company:'building'};
 function renderBrain(){
   const main=$('#main');
   main.innerHTML=`
@@ -537,18 +596,21 @@ function renderBrain(){
     <p style="color:var(--dim);margin:4px 2px 4px">KRC connects the dots across everything it knows about you.</p>
     <h2 class="sec">Ask KRC</h2>
     <div class="chips">
-      <button class="chip" onclick="brainAsk('brief')">✨ Daily brief</button>
-      <button class="chip" onclick="brainAsk('nudge')">⏳ What’s stalled</button>
-      <button class="chip" onclick="brainAsk('insight')">💡 Opportunity</button>
-      <button class="chip" onclick="brainAsk('predict')">🔮 What’s next</button>
-      <button class="chip" onclick="brainAsk('forgot')">🧠 Forgetting?</button>
+      <button class="chip" onclick="brainAsk('brief')"><span class="ci">${svgIcon('sparkle',16)}</span>Daily brief</button>
+      <button class="chip" onclick="brainAsk('nudge')"><span class="ci">${svgIcon('hourglass',16)}</span>What’s stalled</button>
+      <button class="chip" onclick="brainAsk('insight')"><span class="ci">${svgIcon('bulb',16)}</span>Opportunity</button>
+      <button class="chip" onclick="brainAsk('predict')"><span class="ci">${svgIcon('crystal',16)}</span>What’s next</button>
+      <button class="chip" onclick="brainAsk('forgot')"><span class="ci">${svgIcon('brain',16)}</span>Forgetting?</button>
     </div>
     <div class="msg krc" id="brainCard" style="max-width:100%;margin-top:14px;display:none"></div>
     <h2 class="sec">What KRC knows about you</h2>
-    <button class="btn ghost" onclick="loadMemMap()" id="memBtn">🗺 Show my world‑map</button>
+    <button class="btn ghost" onclick="loadMemMap()" id="memBtn">${svgIcon('globe',16)} Show my world‑map</button>
     <div id="memMap" style="margin-top:6px"></div>`;
   if(!cfg.token)$('#brainCard').style.display='block',$('#brainCard').textContent='Connect KRC first (You → Setup).';
 }
+// Home's "Daily brief" chip used to just navigate to Brain and leave the user to tap again — that
+// was a misleading label for a chip that promised a one-tap brief. Now it navigates AND fires it.
+function goDailyBrief(){show('brain');brainAsk('brief');}
 async function brainAsk(kind){
   const card=$('#brainCard');if(!card)return;card.style.display='block';card.textContent='thinking…';
   try{let text='';
@@ -568,7 +630,7 @@ async function loadMemMap(){
     if(!ents.length){box.innerHTML='<div class="empty">KRC is still learning about you.</div>';return;}
     const g={};ents.forEach(e=>{(g[e.etype]=g[e.etype]||[]).push(e);});
     let h='';Object.keys(g).sort().forEach(k=>{
-      h+='<h2 class="sec" style="margin:16px 2px 8px">'+(MEMOJI[k]||'•')+' '+k.toUpperCase()+' · '+g[k].length+'</h2><div class="lwrap">';
+      h+='<h2 class="sec" style="margin:16px 2px 8px;display:flex;align-items:center;gap:7px"><span style="display:inline-flex;color:var(--cyan)">'+svgIcon(MEMOJI[k]||'sparkle',16)+'</span>'+k.toUpperCase()+' · '+g[k].length+'</h2><div class="lwrap">';
       g[k].forEach(e=>{h+='<div class="row"><div class="t">'+escapeHtml(e.title)+(e.content?'<div style="color:var(--dim);font-size:12px;margin-top:2px">'+escapeHtml(e.content)+'</div>':'')+'</div></div>';});
       h+='</div>';
     });
@@ -588,15 +650,15 @@ function renderMeet(){
       <div class="focus-lbl" id="meetState">Ready when you are</div>
       <div class="focus-btns">
         <button class="pill-btn primary" id="meetToggle">● Record</button>
-        <button class="pill-btn" id="meetSum">✨ Summarize</button>
+        <button class="pill-btn" id="meetSum">${svgIcon('sparkle',15)} Summarize</button>
       </div>
     </div>
     <h2 class="sec">Live transcript</h2>
     <div class="card">
       <textarea id="meetText" class="inp" rows="7" placeholder="Words appear here as people speak. You can paste or edit before summarizing." style="min-height:150px;line-height:1.6"></textarea>
       <div style="display:flex;gap:9px;margin-top:10px">
-        <button class="pill-btn" id="meetPaste" style="flex:1">📋 Paste</button>
-        <button class="pill-btn" id="meetClear" style="flex:1">🗑 Clear</button>
+        <button class="pill-btn" id="meetPaste" style="flex:1">${svgIcon('clipboard',15)} Paste</button>
+        <button class="pill-btn" id="meetClear" style="flex:1">${svgIcon('trash',15)} Clear</button>
       </div>
     </div>
     <div id="meetOut"></div>`;
@@ -639,7 +701,7 @@ async function meetSummarize(){
   const out=$('#meetOut');
   if(text.length<40){out.innerHTML='<div class="msg sys" style="max-width:100%">Record or paste a bit more of the meeting first.</div>';return;}
   if(!cfg.token){out.innerHTML='<div class="msg sys" style="max-width:100%">Connect KRC first (You → Setup).</div>';return;}
-  out.innerHTML='<div class="msg krc" style="max-width:100%">✨ Reading the meeting and writing your minutes…</div>';
+  out.innerHTML='<div class="msg krc" style="max-width:100%">'+svgIcon('sparkle',15)+' Reading the meeting and writing your minutes…</div>';
   const prompt="You are KRC's meeting-minutes engine. From the raw meeting transcript below, write clean professional minutes. Use EXACTLY these section headers, each on its own line, in this order:\n\nSUMMARY:\n(2-3 sentence overview)\n\nKEY POINTS:\n- one point per line\n\nDECISIONS:\n- decisions made (write '- None recorded' if none)\n\nACTION ITEMS:\n- [Owner] task — due/when if mentioned\n\nFOLLOW-UPS:\n- open questions or next steps\n\nBe concise and factual. Do NOT invent names, numbers or facts that are not in the transcript. Transcript:\n\n"+text;
   try{const d=await api('/krc',{method:'POST',body:JSON.stringify({message:prompt})});
     const minutes=((d&&d.reply)||'').trim()||'(KRC returned nothing — try again.)';
@@ -649,34 +711,80 @@ async function meetSummarize(){
 function renderMinutes(md){
   const out=$('#meetOut');if(!out)return;const esc=escapeHtml;
   const HDR=/^(SUMMARY|KEY POINTS|DECISIONS|ACTION ITEMS|FOLLOW-?UPS)\s*:?\s*$/i;
-  let h='<div class="card" style="margin-top:14px"><h2 class="sec" style="margin:0 0 4px">📝 Meeting minutes</h2>';
+  let h='<div class="card" style="margin-top:14px"><h2 class="sec" style="margin:0 0 4px;display:flex;align-items:center;gap:7px"><span style="display:inline-flex;color:var(--cyan)">'+svgIcon('note',16)+'</span>Meeting minutes</h2>';
   md.split('\n').forEach(ln=>{const t=ln.trim().replace(/\*\*/g,'');if(!t){h+='<div style="height:5px"></div>';return;}
     if(HDR.test(t)){h+='<div style="color:var(--cyan);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin:13px 0 3px">'+esc(t.replace(/:$/,''))+'</div>';return;}
     if(/^[-•*]\s+/.test(t)){h+='<div style="display:flex;gap:8px;padding:3px 0"><span style="color:var(--violet)">•</span><span>'+esc(t.replace(/^[-•*]\s+/,''))+'</span></div>';return;}
     h+='<div style="padding:2px 0">'+esc(t)+'</div>';});
-  h+='</div><div style="display:flex;gap:9px;margin-top:12px"><button class="pill-btn primary" id="minSave" style="flex:1">💾 Save to Notes</button><button class="pill-btn" id="minCopy" style="flex:1">📋 Copy</button><button class="pill-btn" id="minShare" style="flex:1">↗ Share</button></div>';
+  h+='</div><div style="display:flex;gap:9px;margin-top:12px"><button class="pill-btn primary" id="minSave" style="flex:1">'+svgIcon('save',15)+' Save to Notes</button><button class="pill-btn" id="minCopy" style="flex:1">'+svgIcon('clipboard',15)+' Copy</button><button class="pill-btn" id="minShare" style="flex:1">'+svgIcon('share',15)+' Share</button></div>';
   out.innerHTML=h;
   $('#minSave').onclick=saveMinutes;
   $('#minCopy').onclick=()=>{try{navigator.clipboard.writeText(MEET._lastMinutes);$('#minCopy').textContent='✓ Copied';}catch(e){}};
   $('#minShare').onclick=async()=>{try{if(navigator.share)await navigator.share({title:'Meeting minutes',text:MEET._lastMinutes});else{navigator.clipboard.writeText(MEET._lastMinutes);$('#minShare').textContent='✓ Copied';}}catch(e){}};
 }
+// Break long text into chunks <= maxLen, preferring paragraph > line > sentence > word boundaries.
+// Never cuts mid-word (except the pathological case of a single word longer than maxLen).
+function splitForNotes(text,maxLen){
+  const parts=[];let s=(text||'').trim();
+  while(s.length>maxLen){
+    let cut=s.lastIndexOf('\n\n',maxLen);
+    if(cut<=0){const nl=s.lastIndexOf('\n',maxLen);if(nl>0)cut=nl;}
+    if(cut<=0){
+      let best=-1;const re=/[.!?](\s)/g;let m;
+      while((m=re.exec(s))){if(m.index+1<=maxLen)best=m.index+1;else break;}
+      if(best>0)cut=best;
+    }
+    if(cut<=0){const sp=s.lastIndexOf(' ',maxLen);if(sp>0)cut=sp;}
+    if(cut<=0)cut=maxLen;   // single word longer than maxLen — best-effort hard cut
+    parts.push(s.slice(0,cut).trim());
+    s=s.slice(cut).trim();
+  }
+  if(s)parts.push(s);
+  return parts;
+}
+// The server hard-caps note text at 200 chars (01_CLOUD/app.py /api/create). A one-shot save used
+// to silently truncate long minutes while the UI still said "✓ Saved" — that was a lie. Now: fits
+// in one note -> save as one, same as before. Too long -> split into sequential parts on clean
+// boundaries, save them all, and report the TRUE result (or an honest failure).
 async function saveMinutes(){
-  const now=new Date();const title='Meeting minutes — '+now.toLocaleDateString([],{month:'short',day:'numeric'})+' '+now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  const body=title+'\n\n'+(MEET._lastMinutes||'');
-  try{await api('/api/create',{method:'POST',body:JSON.stringify({kind:'notes',text:body})});const b=$('#minSave');if(b)b.textContent='✓ Saved to Notes';setDot(true);kspeak('Saved to your notes.');}
-  catch(e){const b=$('#minSave');if(b)b.textContent='⚠ failed';setDot(false);}
+  const now=new Date();
+  const dateStr=now.toLocaleDateString([],{month:'short',day:'numeric'})+' '+now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const minutes=(MEET._lastMinutes||'').trim();
+  const b=$('#minSave');
+  const singleTitle='Meeting minutes — '+dateStr;
+  const fullBody=singleTitle+'\n\n'+minutes;
+  try{
+    if(fullBody.length<=200){
+      await api('/api/create',{method:'POST',body:JSON.stringify({kind:'notes',text:fullBody})});
+      if(b)b.textContent='✓ Saved to Notes';setDot(true);kspeak('Saved to your notes.');
+      return;
+    }
+    // Reserve room for the worst-case "(k/N) — <date>" title overhead (N up to 99) + the blank line.
+    const overhead=('Meeting minutes (99/99) — '+dateStr).length+2;
+    const maxContent=Math.max(20,200-overhead);
+    const parts=splitForNotes(minutes,maxContent);
+    const N=parts.length;
+    let allOk=true;
+    for(let k=0;k<N;k++){
+      const title='Meeting minutes ('+(k+1)+'/'+N+') — '+dateStr;
+      try{await api('/api/create',{method:'POST',body:JSON.stringify({kind:'notes',text:title+'\n\n'+parts[k]})});}
+      catch(e){allOk=false;}
+    }
+    if(allOk){if(b)b.textContent='✓ Saved to Notes ('+N+' parts)';setDot(true);kspeak('Saved to your notes in '+N+' parts.');}
+    else{if(b)b.textContent='⚠ failed';setDot(false);}
+  }catch(e){if(b)b.textContent='⚠ failed';setDot(false);}
 }
 
 /* ---------- COMPUTER (Jarvis PC control) ---------- */
 const PC_CTRL=[
-  {i:'📸',t:'Screenshot',c:'take a screenshot'},
-  {i:'👁',t:'Read my screen',c:"what's on my screen?"},
-  {i:'🌐',t:'Open browser',c:'open chrome'},
-  {i:'⏯',t:'Play / Pause',c:'play pause'},
-  {i:'⏭',t:'Next track',c:'next track'},
-  {i:'🔊',t:'Volume up',c:'volume up'},
-  {i:'🔉',t:'Volume down',c:'volume down'},
-  {i:'🗕',t:'Minimize all',c:'minimize all windows'},
+  {i:'camera',t:'Screenshot',c:'take a screenshot'},
+  {i:'eye',t:'Read my screen',c:"what's on my screen?"},
+  {i:'globe',t:'Open browser',c:'open chrome'},
+  {i:'play-pause',t:'Play / Pause',c:'play pause'},
+  {i:'skip-forward',t:'Next track',c:'next track'},
+  {i:'volume-up',t:'Volume up',c:'volume up'},
+  {i:'volume-down',t:'Volume down',c:'volume down'},
+  {i:'minimize',t:'Minimize all',c:'minimize all windows'},
 ];
 function renderPC(){
   const main=$('#main');
@@ -697,13 +805,13 @@ function renderPC(){
         <img id="pcLiveShot" style="width:100%;height:100%;object-fit:contain;display:none;cursor:zoom-in"/>
         <div id="pcShotHint" style="color:var(--dim);font-size:14px;text-align:center;padding:20px">Tap “Refresh screen” to see your PC.</div>
       </div>
-      <button class="pill-btn" id="pcRefresh" style="width:100%;margin-top:10px">🔄 Refresh screen</button>
+      <button class="pill-btn" id="pcRefresh" style="width:100%;margin-top:10px">${svgIcon('refresh',15)} Refresh screen</button>
       <div class="quick" style="margin-top:10px"><input id="pcAns" class="inp" placeholder="Type an answer for your PC…"/><button class="add" id="pcAnsSend" style="font-size:20px" title="Type this into the active window & press Enter">↩</button></div>
       <div class="hint">Types your answer into the active window, presses Enter, then shows the result.</div>
     </div>
     <h2 class="sec">Quick controls</h2>
     <div class="chips" id="pcChips">
-      ${PC_CTRL.map((x,i)=>`<button class="chip" data-i="${i}">${x.i} ${x.t}</button>`).join('')}
+      ${PC_CTRL.map((x,i)=>`<button class="chip" data-i="${i}"><span class="ci">${svgIcon(x.i,16)}</span>${x.t}</button>`).join('')}
     </div>
     <h2 class="sec">Do anything</h2>
     <div class="quick"><input id="pcCmd" class="inp" placeholder="Tell KRC what to do on your PC…"/><button class="add" id="pcSend" style="font-size:22px">→</button></div>
@@ -739,9 +847,9 @@ async function pcShotInto(imgSel,hintSel){
   }catch(e){setDot(false);if(hint){hint.style.display='';hint.textContent='⚠ Couldn’t reach your PC — check You → Setup.';}return false;}
 }
 async function pcRefreshShot(){
-  const b=$('#pcRefresh');if(b){b.disabled=true;b.textContent='📸 Capturing…';}
+  const b=$('#pcRefresh');if(b){b.disabled=true;b.innerHTML=svgIcon('camera',15)+' Capturing…';}
   await pcShotInto('#pcLiveShot','#pcShotHint');
-  if(b){b.disabled=false;b.textContent='🔄 Refresh screen';}
+  if(b){b.disabled=false;b.innerHTML=svgIcon('refresh',15)+' Refresh screen';}
 }
 let _pcBusy=false;   // in-flight lock: mirrors _chatBusy — no double-tap firing duplicate real PC actions
 // Type the user's answer into the focused window, press Enter, then show the fresh result.
@@ -749,7 +857,7 @@ async function pcAnswer(text){
   if(!cfg.token){pcCard('Connect KRC first (You → Setup).');return;}
   if(_pcBusy)return;
   _pcBusy=true;
-  const card=pcCard('⏳ Answering: <b>'+escapeHtml(text)+'</b> …');
+  const card=pcCard(svgIcon('hourglass',15)+' Answering: <b>'+escapeHtml(text)+'</b> …');
   try{
     const d=await api('/krc',{method:'POST',body:JSON.stringify({message:'answer '+text+' and submit'})});
     setDot(true);const reply=d.reply||'Done.';if(card)card.textContent=reply;kspeak(reply);
@@ -772,7 +880,7 @@ async function pcDo(cmd){
   if(!cfg.token){pcCard('Connect KRC first (You → Setup).');return;}
   if(_pcBusy)return;
   _pcBusy=true;
-  const card=pcCard('⏳ <b>'+escapeHtml(cmd)+'</b> …');
+  const card=pcCard(svgIcon('hourglass',15)+' <b>'+escapeHtml(cmd)+'</b> …');
   try{const d=await api('/krc',{method:'POST',body:JSON.stringify({message:cmd})});
     const reply=d.reply||'Done.';setDot(true);
     if(card)card.textContent=reply;kspeak(reply);
@@ -786,7 +894,7 @@ async function pcFetchBlob(path){for(let i=0;i<6;i++){try{const u=cfg.url+path+(
 async function pcShowMedia(path,type,name){
   const blob=await pcFetchBlob(path);if(!blob)return;const url=URL.createObjectURL(blob);const out=$('#pcOut');if(!out)return;
   if(type==='shot'){const card=document.createElement('div');card.className='card';card.style.marginTop='10px';const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;border-radius:12px;display:block;cursor:zoom-in';img.onclick=()=>window.open(url,'_blank');card.appendChild(img);out.insertBefore(card,out.firstChild);setTimeout(()=>URL.revokeObjectURL(url),60000);}   // free the blob after viewing window (repeated screenshots would otherwise leak)
-  else{const card=document.createElement('div');card.className='msg krc';card.style.cssText='max-width:100%;cursor:pointer;display:flex;align-items:center;gap:8px';card.innerHTML='📎 <b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';card.onclick=async()=>{try{const file=new File([blob],name,{type:blob.type||'application/octet-stream'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return;}}catch(e){}const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();};out.insertBefore(card,out.firstChild);}
+  else{const card=document.createElement('div');card.className='msg krc';card.style.cssText='max-width:100%;cursor:pointer;display:flex;align-items:center;gap:8px';card.innerHTML='<span style="display:inline-flex;color:var(--cyan)">'+svgIcon('paperclip',15)+'</span><b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';card.onclick=async()=>{try{const file=new File([blob],name,{type:blob.type||'application/octet-stream'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return;}}catch(e){}const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();};out.insertBefore(card,out.firstChild);}
 }
 
 /* ---------- KRC'S EYES (camera observation) ---------- */
@@ -806,12 +914,12 @@ function renderSee(){
       </div>
       <canvas id="seeCanvas" class="hide"></canvas>
       <div style="display:flex;gap:9px;margin-top:10px">
-        <button class="pill-btn" id="seeStart" style="flex:1">📷 Start camera</button>
-        <button class="pill-btn" id="seeFlip" style="flex:1">🔄 Flip</button>
+        <button class="pill-btn" id="seeStart" style="flex:1">${svgIcon('camera',15)} Start camera</button>
+        <button class="pill-btn" id="seeFlip" style="flex:1">${svgIcon('refresh',15)} Flip</button>
       </div>
     </div>
-    <div class="quick" style="margin-top:12px"><input id="seeQ" class="inp" placeholder="Ask about what KRC sees…" value="What do you see?"/><button class="add" id="seeAsk" style="font-size:20px">👁</button></div>
-    <button class="btn ghost" id="seeRobot" style="margin-top:10px">🤖 Look through the robot’s eye instead</button>
+    <div class="quick" style="margin-top:12px"><input id="seeQ" class="inp" placeholder="Ask about what KRC sees…" value="What do you see?"/><button class="add" id="seeAsk" style="display:flex;align-items:center;justify-content:center">${svgIcon('eye',18)}</button></div>
+    <button class="btn ghost" id="seeRobot" style="margin-top:10px">${svgIcon('robot',15)} Look through the robot’s eye instead</button>
     <div id="seeOut" style="margin-top:12px"></div>
     <div class="hint" style="margin-top:10px">The camera runs only on this screen. A single frame is sent to <b>your</b> KRC cloud to be described, then discarded.</div>`;
   $('#seeStart').onclick=seeToggleCam;
@@ -824,17 +932,17 @@ async function seeStartCam(){
   try{if(SEE.stream)seeStopCam();
     SEE.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:SEE.facing},audio:false});
     const v=$('#seeVid');if(v)v.srcObject=SEE.stream;const hint=$('#seeHint');if(hint)hint.style.display='none';
-    const b=$('#seeStart');if(b)b.textContent='⏹ Stop camera';return true;
+    const b=$('#seeStart');if(b)b.innerHTML=svgIcon('stop',15)+' Stop camera';return true;
   }catch(e){const hint=$('#seeHint');if(hint){hint.style.display='flex';hint.textContent='Couldn’t open the camera — allow camera access in your browser.';}return false;}
 }
-function seeStopCam(){if(SEE.stream){SEE.stream.getTracks().forEach(t=>t.stop());SEE.stream=null;}const v=$('#seeVid');if(v)v.srcObject=null;const b=$('#seeStart');if(b)b.textContent='📷 Start camera';const hint=$('#seeHint');if(hint){hint.style.display='flex';hint.textContent='Tap “Start camera” to let KRC see.';}}
+function seeStopCam(){if(SEE.stream){SEE.stream.getTracks().forEach(t=>t.stop());SEE.stream=null;}const v=$('#seeVid');if(v)v.srcObject=null;const b=$('#seeStart');if(b)b.innerHTML=svgIcon('camera',15)+' Start camera';const hint=$('#seeHint');if(hint){hint.style.display='flex';hint.textContent='Tap “Start camera” to let KRC see.';}}
 function seeToggleCam(){if(SEE.stream)seeStopCam();else seeStartCam();}
 async function seeFlip(){SEE.facing=SEE.facing==='environment'?'user':'environment';if(SEE.stream)await seeStartCam();}
 function seeCaptureBlob(){return new Promise(res=>{const v=$('#seeVid');if(!v||!v.videoWidth){res(null);return;}const cv=$('#seeCanvas');const w=640,h=Math.round(640*v.videoHeight/v.videoWidth)||480;cv.width=w;cv.height=h;cv.getContext('2d').drawImage(v,0,0,w,h);cv.toBlob(b=>res(b),'image/jpeg',0.75);});}
 async function seeDescribe(robot){
   const out=$('#seeOut');const q=(($('#seeQ')||{}).value||'What do you see?').trim();
   if(!cfg.token){out.innerHTML='<div class="msg sys" style="max-width:100%">Connect KRC first (You → Setup).</div>';return;}
-  out.innerHTML='<div class="msg krc" style="max-width:100%">👁 Looking…</div>';
+  out.innerHTML='<div class="msg krc" style="max-width:100%">'+svgIcon('eye',15)+' Looking…</div>';
   try{
     if(!robot){
       const blob=await seeCaptureBlob();
@@ -881,19 +989,30 @@ function renderGest(){
     <div id="gestLog" style="margin-top:12px"></div>`;
   $('#gestToggle').onclick=()=>{GEST.running?gestStop():gestStart();};
 }
+// MediaPipe is VENDORED locally (vendor/mediapipe/) — no CDN, CSP-clean. Lazy-loaded on first gesture
+// use and runtime-cached by the service worker (sw.js), so after the first load gestures work fully
+// offline. Kept OUT of the shell precache so the ~17MB engine never bloats install for non-gesture users.
 async function gestLoad(){
   if(GEST.rec)return GEST.rec;
-  const V=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
-  const fs=await V.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const V=await import('./vendor/mediapipe/vision_bundle.mjs');
+  const fs=await V.FilesetResolver.forVisionTasks('./vendor/mediapipe/wasm');
   GEST.rec=await V.GestureRecognizer.createFromOptions(fs,{
-    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'},
+    baseOptions:{modelAssetPath:'./vendor/mediapipe/gesture_recognizer.task'},
     runningMode:'VIDEO',numHands:1});
   return GEST.rec;
 }
 async function gestStart(){
   const st=$('#gestState');
-  if(st)st.textContent='Loading gesture engine… (first time downloads once)';
-  try{await gestLoad();}catch(e){if(st)st.textContent='⚠ Couldn’t load the gesture engine (needs internet the first time). '+(e.message||'');return;}
+  // MediaPipe is vendored + service-worker cached: once loaded, gestures work offline. The only failure
+  // is the very first use with no connection (nothing cached yet) — handled honestly in the catch below.
+  if(st)st.textContent='Loading gesture engine…';
+  try{await gestLoad();}
+  catch(e){
+    if(st)st.textContent=navigator.onLine
+      ?'⚠ Couldn’t load the gesture engine — please try again.'
+      :'The gesture engine loads once (~17 MB) and needs a connection the first time — after that it works offline.';
+    return;
+  }
   try{GEST.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});}catch(e){if(st)st.textContent='Allow camera access to use gestures.';return;}
   const v=$('#gestVid');if(v){v.srcObject=GEST.stream;try{await v.play();}catch(e){}}
   GEST.running=true;const b=$('#gestToggle');if(b)b.textContent='⏹ Stop';
@@ -933,7 +1052,9 @@ function gestHandle(name,score){
 /* ---------- CHAT + face ---------- */
 function renderChat(){
   const main=$('#main');
-  main.innerHTML='<div class="face-wrap"><canvas id="face" width="300" height="230"></canvas></div>';
+  // Same 12:7 aspect ratio as the Home hero face (360x210) — _renderFace's geometry math scales
+  // off canvas W/H attributes, so a mismatched ratio made the same emotion look different per view.
+  main.innerHTML='<div class="face-wrap"><canvas id="face" width="300" height="175"></canvas></div>';
   if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}
   if(!cfg.token){main.insertAdjacentHTML('beforeend','<div class="msg sys">Connect KRC in <b>You → Setup</b>.</div>');return;}
   if(!chat.length)main.insertAdjacentHTML('beforeend','<div class="msg sys">Say hello to KRC 👋</div>');
@@ -1000,7 +1121,7 @@ async function showShot(path){
 }
 async function showFile(path,name){
   const d=document.createElement('div');d.className='msg krc';d.style.cssText='cursor:pointer;display:flex;align-items:center;gap:8px';
-  d.innerHTML='📎 <b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';
+  d.innerHTML='<span style="display:inline-flex;color:var(--cyan)">'+svgIcon('paperclip',15)+'</span><b>'+escapeHtml(name)+'</b> <span style="opacity:.6">— tap to save</span>';
   const setS=s=>{const sp=d.querySelector('span');if(sp)sp.textContent='— '+s;};
   d.onclick=async()=>{setS('fetching…');let blob;
     try{const r=await fetchT(cfg.url+path,{headers:{'X-KRC-Token':cfg.token}},30000);if(!r.ok){setS('failed ('+r.status+')');return;}blob=await r.blob();}catch(e){setS('failed — check connection');return;}
@@ -1241,7 +1362,7 @@ async function renderListInto(){
   const single=kind.replace(/s$/,''),isNotes=kind==='notes',isRem=kind==='reminders';
   let addHtml;
   if(isRem){addHtml=`<div class="card" style="margin-bottom:14px"><input id="addInp" class="inp" placeholder="Remind me to…" style="margin-bottom:9px"/><div style="display:flex;gap:9px;margin-bottom:10px"><input id="addWhen" class="inp" type="datetime-local"/><button class="add" id="addBtn">+</button></div><div class="chips" id="quickT"><button class="chip" data-m="15">+15m</button><button class="chip" data-m="30">+30m</button><button class="chip" data-m="60">+1h</button><button class="chip" data-m="180">+3h</button><button class="chip" data-m="1440">+1 day</button></div></div>`;}
-  else if(isNotes){addHtml=`<div class="quick"><textarea id="addInp" class="inp" rows="2" placeholder="New note… or tap mic to dictate"></textarea><button class="add" id="dictBtn" title="Dictate" style="background:var(--glass2);color:var(--cyan);font-size:18px">🎤</button><button class="add" id="addBtn">+</button></div>`;}
+  else if(isNotes){addHtml=`<div class="quick"><textarea id="addInp" class="inp" rows="2" placeholder="New note… or tap mic to dictate"></textarea><button class="add" id="dictBtn" title="Dictate" style="background:var(--glass2);color:var(--cyan);display:flex;align-items:center;justify-content:center">${svgIcon('mic',18)}</button><button class="add" id="addBtn">+</button></div>`;}
   else{addHtml=`<div class="quick"><input id="addInp" class="inp" placeholder="Add a ${single}…"/><button class="add" id="addBtn">+</button></div>`;}
   host.innerHTML=`${addHtml}<div class="lwrap"><div class="empty">loading…</div></div>`;
   const ai=$('#addInp'),ab=$('#addBtn');
@@ -1296,10 +1417,10 @@ function renderProfile(){
       <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/></svg></span><div class="sg"><b>ElevenLabs voice</b><p>Premium (optional · monthly cap)</p></div><div class="sw ${cfg.eleven?'on':''}" id="setEleven"></div></div>
       <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg></span><div class="sg"><b>Voice</b><p>Free · unlimited</p><select class="inp" id="setVoice" style="margin-top:8px;padding:10px 12px"></select></div></div>
     </div>
-    <button class="btn ghost" id="voiceTest">🔊 Hear KRC’s voice</button>
+    <button class="btn ghost" id="voiceTest">${svgIcon('volume-up',16)} Hear KRC’s voice</button>
 
     <h2 class="sec">Notifications</h2>
-    <div style="display:flex;gap:10px"><button class="btn ghost" id="pushOn" style="flex:1">🔔 Enable</button><button class="btn ghost" id="pushTest" style="flex:1">Send test</button></div>
+    <div style="display:flex;gap:10px"><button class="btn ghost" id="pushOn" style="flex:1">${svgIcon('bell',16)} Enable</button><button class="btn ghost" id="pushTest" style="flex:1">Send test</button></div>
     <div class="status" id="pushStatus">KRC can ping your phone with briefs &amp; insights even when closed. iPhone: install to Home Screen first.</div>
 
     <h2 class="sec">App</h2>

@@ -11,5 +11,8 @@
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "form_factor": "narrow", "label": "KRC companion — placeholder until real in-app screenshots are captured" }
   ]
 }

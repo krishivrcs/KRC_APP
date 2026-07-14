@@ -1,5 +1,9 @@
 /* KRC companion service worker — shell cache + push */
-const CACHE = 'krc-app-v17';
+const CACHE = 'krc-app-v19';
+// Vendored MediaPipe gesture engine (~17MB): big + rarely changes. Its own cache so it survives app
+// version bumps (no 17MB re-download on every update), and it is deliberately NOT in SHELL — it is
+// runtime-cached only when the user actually opens the Gestures view, so it never bloats first install.
+const MPCACHE = 'krc-mediapipe-v1';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -7,13 +11,20 @@ self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {})));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== MPCACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 // Shell-first for navigations/assets; always go to network for the cloud API.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return; // never touch cross-origin (CDN, model files, cloud API)
   if (e.request.method !== 'GET' || url.pathname.includes('/api/') || url.pathname === '/krc') return; // let API calls hit network
+  // Vendored MediaPipe engine: cache-first into its own persistent cache (offline after the first load).
+  // No index.html fallback here — a failed load must surface as a network error so the Gestures view can
+  // show its honest "needs a connection the first time" message instead of serving HTML for a .wasm.
+  if (url.pathname.includes('/vendor/mediapipe/')) {
+    e.respondWith(caches.open(MPCACHE).then(c => c.match(e.request).then(r => r || fetch(e.request).then(resp => { if (resp && resp.ok) c.put(e.request, resp.clone()); return resp; }))));
+    return;
+  }
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html'))));
 });
 // Push notifications from the KRC cloud.
