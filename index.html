@@ -94,6 +94,17 @@
   .hint{color:var(--faint);font-size:12.5px;margin-top:8px;line-height:1.5}
   .seg-note{background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:13.5px;color:var(--dim);line-height:1.6;margin-top:6px}
   .seg-note b{color:var(--txt)}
+  /* self-test readiness chips (onboarding + Setup) */
+  .st-head{font-size:14px;font-weight:700;margin:2px 0 12px;line-height:1.4}
+  .st-head.st-green{color:#43d97a} .st-head.st-amber{color:#ffb43e} .st-head.st-red{color:#ff6b6b}
+  .st-list{display:flex;flex-direction:column;gap:7px}
+  .st-row{display:flex;align-items:center;gap:10px;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .st-ic{width:20px;height:20px;flex:0 0 20px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:12px;font-weight:800}
+  .st-green .st-ic{background:rgba(67,217,122,.16);color:#43d97a}
+  .st-amber .st-ic{background:rgba(255,180,62,.16);color:#ffb43e}
+  .st-red .st-ic{background:rgba(255,107,107,.16);color:#ff6b6b}
+  .st-nm{font-size:13.5px;font-weight:600;color:var(--txt);flex:0 0 auto}
+  .st-dt{font-size:12px;color:var(--faint);margin-left:auto;text-align:right;line-height:1.35}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}
   .toggle-row:last-child{border:0}
   .toggle-row .tt b{font-size:14.5px}.toggle-row .tt p{color:var(--dim);font-size:12.5px}
@@ -412,7 +423,8 @@ async function onbConnect(){
     // token would still show "Connected" if we gated on that. /api/list/status requires auth.
     await api('/api/list/status');setDot(true);
     try{const h=await api('/api/health');const u=(h.relationship&&h.relationship.user)||'';if(u&&!cfg.name)cfg.name=u;}catch(e2){}
-    st.innerHTML='✓ Connected to your KRC brain!';setTimeout(nextOnb,650);
+    st.innerHTML='✓ Connected — checking your KRC…';
+    await showSelfTest();   // prove the unit is working before the customer's first sentence
   }catch(e){
     // 401 here means the token itself is wrong — the generic "add it in You → Setup" line makes
     // no sense mid-onboarding (they're staring at the token field already), so say it plainly.
@@ -420,6 +432,29 @@ async function onbConnect(){
       ?'⚠ That token didn’t work — double-check it or re-scan your QR code.'
       :'⚠ Couldn’t reach KRC ('+e.message+'). Check the address/token — or continue and fix it in You → Setup.';
   }
+}
+// ---- KRC self-test: prove the unit works (GET /api/selftest) ----
+const ST_LABEL={db:'Memory',llm:'Brain',asr:'Hearing',tts:'Voice',wake:'Wake word',embed:'Memory search',face:'Face ID',pc:'PC agent'};
+const ST_ICON={green:'✓',amber:'!',red:'✕'};
+function selfTestHTML(d){
+  const rows=(d.checks||[]).map(c=>
+    `<div class="st-row st-${c.status}"><span class="st-ic">${ST_ICON[c.status]||'•'}</span>`+
+    `<span class="st-nm">${escapeHtml(ST_LABEL[c.name]||c.name)}</span>`+
+    `<span class="st-dt">${escapeHtml(c.detail||'')}</span></div>`).join('');
+  const head=d.overall==='green'?'Everything’s working — KRC is good to go. ✓'
+            :d.overall==='amber'?'KRC is ready to work. A couple of extras are optional (below).'
+            :'KRC’s core needs a look — see below.';
+  return `<div class="st-head st-${escapeHtml(d.overall||'amber')}">${head}</div><div class="st-list">${rows}</div>`;
+}
+async function showSelfTest(){
+  let body;
+  try{const d=await api('/api/selftest');body=selfTestHTML(d);}
+  catch(e){body='<div class="hint">Couldn’t run the check right now — you can re-run it anytime in You → Setup.</div>';}
+  $('#onbCard').innerHTML=`${dotsHTML(1)}
+    <div class="onb-title">Checking your KRC</div>
+    <div class="onb-sub">A quick health check so you know it’s ready.</div>
+    <div class="onb-body">${body}</div>
+    <button class="big-btn" onclick="nextOnb()">Looks good — continue</button>`;
 }
 function step_wifi(){
   $('#onbCard').innerHTML=`
