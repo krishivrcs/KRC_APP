@@ -25,6 +25,27 @@
     --txt:#F3F0EA; --dim:#A69E90; --faint:#6E685C;
     --good:#54d6a0; --danger:#ff6b7d; --warn:#ffc266;
     --r:20px; --r2:16px; --sh:0 12px 40px rgba(0,0,0,.5);
+    /* ===== Liquid-Glass material system — ported from the desktop :root, tuned for mobile.
+       Everything DERIVED from the closed Ember-Gold palette above — no new hue family, only
+       depth, tint and light. Blur is slightly lighter than desktop for phone GPU headroom. ===== */
+    --pane:rgba(18,15,11,.86);
+    --glass-sheen:linear-gradient(180deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.025) 38%,rgba(255,255,255,.012) 100%);
+    --edge:inset 0 1px 0 rgba(255,255,255,.06);          /* 1px inner top-highlight */
+    --edge-hi:inset 0 1px 0 rgba(255,255,255,.11);
+    --blur:blur(16px) saturate(1.3);                     /* layered glass blur */
+    --e1:0 1px 2px rgba(0,0,0,.40), 0 4px 14px rgba(0,0,0,.26);   /* elevation ladder */
+    --e2:0 2px 5px rgba(0,0,0,.44), 0 12px 32px rgba(0,0,0,.34);
+    --e3:0 4px 10px rgba(0,0,0,.48), 0 22px 56px rgba(0,0,0,.46);
+    --e-ember:0 6px 26px rgba(255,142,43,.30);            /* ember glow cast */
+    --e-ember-hi:0 8px 34px rgba(255,142,43,.44);
+    --ember-06:rgba(255,180,62,.06); --ember-12:rgba(255,180,62,.12);
+    --ember-22:rgba(255,180,62,.22); --ember-40:rgba(255,180,62,.40);
+    --ease-fluid:cubic-bezier(.22,1,.36,1);              /* decelerate, liquid settle */
+    --ease-glass:cubic-bezier(.4,0,.2,1);
+    --t-micro:180ms;                                     /* hover / press feedback */
+    --t-fluid:520ms;                                     /* view + panel entrances */
+    --t-stage:600ms;                                     /* the face stage */
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,"Segoe UI Mono",monospace; /* engineered numerals */
     /* System font stack — no CDN fonts (offline-first constraint). Looks intentional cross-platform:
        macOS/iOS -> SF Pro, Windows -> Segoe UI, Android/Linux -> Roboto/system-ui. */
     --font-ui:-apple-system,"Segoe UI",Roboto,system-ui,"Helvetica Neue",Arial,sans-serif;
@@ -35,10 +56,14 @@
   body{
     font-family:var(--font-ui);
     color:var(--txt);overscroll-behavior:none;font-size:15px;line-height:1.5;
+    /* Warm-obsidian lit ground: an ember horizon at the top that the glass panes sit ON, plus a
+       deep well at the bottom — ported from the desktop body, re-weighted for a tall portrait. */
     background:
-      radial-gradient(120% 75% at 50% -8%, #17130b 0%, transparent 55%),
-      radial-gradient(90% 60% at 92% 8%, rgba(255,180,62,.10) 0%, transparent 45%),
-      radial-gradient(90% 60% at 6% 18%, rgba(255,142,43,.07) 0%, transparent 42%),
+      radial-gradient(120% 55% at 50% -6%, #1d160c 0%, transparent 55%),
+      radial-gradient(85% 40% at 20% 1%, rgba(255,142,43,.14) 0%, transparent 58%),
+      radial-gradient(90% 48% at 92% 6%, rgba(255,180,62,.10) 0%, transparent 45%),
+      radial-gradient(90% 48% at 6% 16%, rgba(255,142,43,.06) 0%, transparent 42%),
+      radial-gradient(150% 85% at 50% 116%, #05060a 0%, transparent 60%),
       var(--bg);
     background-attachment:fixed;
   }
@@ -125,8 +150,8 @@
 
   h1{font-size:26px;font-weight:700;margin:6px 2px 2px}
   h2.sec{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:24px 4px 12px;font-weight:800}
-  .card{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh)}
-  .hero{display:flex;align-items:center;gap:16px;background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);position:relative;overflow:hidden}
+  .card{background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--e2),var(--edge)}
+  .hero{display:flex;align-items:center;gap:16px;background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--e2),var(--edge);position:relative;overflow:hidden}
   .hero::before{content:"";position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:var(--grad);filter:blur(40px);opacity:.18}
   .hero .htxt{flex:1;min-width:0;z-index:1}
   .hero .htxt b{font-size:17px;font-weight:700;display:block}
@@ -153,17 +178,37 @@
   .act-row .act-i{font-size:15px;flex:0 0 auto;margin-top:1px;filter:saturate(.9)}
   .act-row .act-t{min-width:0}.act-row .act-t span{font-size:13.5px;display:block;line-height:1.45}
   .act-row .act-t small{color:var(--faint);font-size:11px;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
-  /* living face as the Home hero */
-  .home-face{display:flex;justify-content:center;margin:2px 0 0;cursor:pointer}
-  .home-face canvas{width:100%;max-width:320px;height:auto}
-  .home-greet{text-align:center;margin:0 0 8px}
-  .home-greet b{font-size:18px;font-weight:700;display:block}
-  .home-greet p{color:var(--dim);font-size:13px;margin-top:2px}
+  /* living face as the premium Home hero — a lit stage: an ember bloom sits BEHIND the canvas so
+     the companion reads as glowing on the warm-obsidian ground. The face ENGINE is untouched;
+     only its surround/scale changes here. */
+  .home-face{position:relative;display:flex;justify-content:center;align-items:center;margin:10px 0 2px;cursor:pointer}
+  .home-face::before{content:"";position:absolute;width:74%;height:72%;left:50%;top:47%;transform:translate(-50%,-50%);
+    background:radial-gradient(ellipse at center,var(--ember-22) 0%,var(--ember-06) 42%,transparent 72%);
+    filter:blur(26px);z-index:0;pointer-events:none;animation:stageGlow 6s var(--ease-fluid) infinite}
+  @keyframes stageGlow{0%,100%{opacity:.72;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}}
+  .home-face canvas{position:relative;z-index:1;width:100%;max-width:340px;height:auto}
+  .home-greet{text-align:center;margin:2px 0 10px}
+  .home-greet b{font-size:20px;font-weight:700;display:block}
+  .home-greet p{color:var(--dim);font-size:13.5px;margin-top:3px}
+  /* daily-brief card (/api/reflect/now) */
+  .brief-card{cursor:pointer;transition:transform var(--t-micro) var(--ease-glass),box-shadow var(--t-micro)}
+  .brief-card:active{transform:scale(.99)}
+  .brief-h{display:flex;align-items:center;gap:8px;color:var(--accent-2);font-weight:800;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:9px}
+  .brief-body{color:var(--txt);font-size:14px;line-height:1.55}
+  /* Lists hub — 4 large cards */
+  .hub{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:2px}
+  .hub-card{text-align:left;background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);padding:15px;box-shadow:var(--e2),var(--edge);display:flex;flex-direction:column;gap:5px;min-height:120px;transition:transform var(--t-micro) var(--ease-glass),box-shadow var(--t-micro)}
+  .hub-card:active{transform:scale(.97);box-shadow:var(--e2),var(--edge),var(--e-ember)}
+  .hub-top{display:flex;align-items:center;justify-content:space-between}
+  .hub-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--ember-12);color:var(--accent-2);flex:0 0 auto}
+  .hub-n{font-family:var(--mono);font-size:25px;font-weight:700;color:var(--txt);line-height:1}
+  .hub-t{font-size:16px;font-weight:700;margin-top:3px}
+  .hub-sub{color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chip:hover{background:var(--glass2);border-color:var(--line2);transform:translateY(-1px)}
   .chip .ci{color:var(--accent-2);display:flex}
 
   .focus-card{text-align:center}
-  .focus-time{font-size:52px;font-weight:700;letter-spacing:.01em;font-family:var(--font-round)}
+  .focus-time{font-size:52px;font-weight:700;letter-spacing:.01em;font-family:var(--mono);font-variant-numeric:tabular-nums}
   .focus-lbl{color:var(--dim);font-size:13px;margin-top:2px}
   .focus-btns{display:flex;gap:10px;justify-content:center;margin-top:14px}
   .pill-btn{background:var(--glass);border:1px solid var(--line);color:var(--txt);border-radius:13px;padding:10px 18px;font-size:14px;font-weight:700;transition:.2s}
@@ -174,7 +219,7 @@
 
   .agenda-h{margin:6px 0 6px;color:var(--faint);font-size:11px;letter-spacing:.1em;font-weight:800}
   .agenda-row{display:flex;gap:10px;padding:7px 0;align-items:baseline}
-  .agenda-row .tm{color:var(--accent-2);font-size:13px;min-width:64px;font-weight:700}
+  .agenda-row .tm{color:var(--accent-2);font-size:13px;min-width:64px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
 
   /* segmented */
   .seg{display:flex;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:4px;margin:4px 0 16px}
@@ -236,12 +281,13 @@
 
   /* bottom nav */
   nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:536px;display:flex;justify-content:space-around;gap:3px;padding:9px 8px;z-index:40;
-    background:rgba(18,15,11,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:26px;box-shadow:var(--sh)}
-  nav button{flex:1;color:var(--faint);padding:7px 2px;font-size:10.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:.22s}
+    background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:26px;box-shadow:var(--e3),var(--edge-hi)}
+  nav button{flex:1;min-height:52px;color:var(--faint);padding:7px 2px;font-size:10.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:color var(--t-micro) var(--ease-glass)}
   nav button svg{width:21px;height:21px}
   nav button.on{color:var(--txt)}
-  nav button.on .nb{background:var(--grad);color:#0a0c18}
-  nav .nb{width:46px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:.22s}
+  nav button.on .nb{background:var(--grad);color:#0a0c18;box-shadow:var(--e-ember)}
+  nav .nb{width:46px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:transform var(--t-micro) var(--ease-fluid),box-shadow var(--t-micro),background var(--t-micro)}
+  nav button.on .nb{transform:translateY(-1px)}
 
   .hide{display:none !important}
 </style>
@@ -519,9 +565,11 @@ function show(v){
   if(view==='see'&&v!=='see'){try{seeStopCam();}catch(e){}}
   if(view==='gest'&&v!=='gest'){try{gestStop();}catch(e){}}
   view=v;
-  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  const listSub=(v==='tasks'||v==='reminders'||v==='notes'||v==='goals');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v||(listSub&&b.dataset.v==='lists')));
   $('#app').classList.toggle('chatview',v==='chat');
   $('#composer').classList.toggle('hide',v!=='chat');
+  window.scrollTo&&window.scrollTo(0,0);const _m=$('#main');if(_m)_m.scrollTop=0;
   if(v==='home')renderHome();
   else if(v==='chat')renderChat();
   else if(v==='meet')renderMeet();
@@ -529,6 +577,7 @@ function show(v){
   else if(v==='see')renderSee();
   else if(v==='gest')renderGest();
   else if(v==='lists')renderLists();
+  else if(listSub)renderListPage(v);
   else if(v==='brain')renderBrain();
   else if(v==='profile')renderProfile();
 }
@@ -561,11 +610,25 @@ async function loadActivity(){
     box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i" style="color:var(--accent-2);display:flex">${svgIcon(ic[e.kind]||'sparkle',15)}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
   }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load activity</div>';}
 }
+// Daily brief teaser on Home (GET /api/reflect/now). Cached per session so returning to Home doesn't
+// re-fire the LLM brief; tapping the card opens the full brief in Brain (goDailyBrief()).
+async function loadBrief(){
+  const b=$('#briefBody');if(!b)return;
+  if(!cfg.token){b.textContent='Connect KRC to see your daily brief.';return;}
+  if(window._briefCache){b.textContent=window._briefCache;return;}
+  try{const d=await api('/api/reflect/now');const t=((d&&d.brief)||'').trim();
+    if(t){window._briefCache=t;b.textContent=t;}else b.textContent='Nothing to brief yet — enjoy the calm.';
+  }catch(e){b.textContent='Tap to hear today’s brief.';}
+}
 async function renderHome(){
   const main=$('#main');
   main.innerHTML=`
     <div class="home-face" onclick="show('chat')" title="Tap to talk"><canvas id="face" width="360" height="210"></canvas></div>
     <div class="home-greet"><b id="hi">Hi! I'm KRC.</b><p id="hi2">Tap the face to chat, or add something below.</p></div>
+    <div class="card brief-card" id="briefCard" onclick="goDailyBrief()">
+      <div class="brief-h">${svgIcon('sparkle',15)}Daily brief</div>
+      <div class="brief-body" id="briefBody">Tap for today's brief…</div>
+    </div>
     <div class="fleet" id="fleet"></div>
     <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
     <h2 class="sec">Today</h2>
@@ -586,7 +649,7 @@ async function renderHome(){
       <button class="chip" onclick="show('see')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>KRC’s eyes</button>
       <button class="chip" onclick="show('gest')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 8V6a2 2 0 0 0-4 0v8a6 6 0 0 0 12 0v-3"/></svg></span>Gestures</button>
       <button class="chip" onclick="goDailyBrief()"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg></span>Daily brief</button>
-      <button class="chip" onclick="listKind='reminders';show('lists')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
+      <button class="chip" onclick="show('reminders')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
     </div>`;
   setupPomodoro();
   setFaceEmo('idle');if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}   // living face is the Home hero
@@ -595,6 +658,7 @@ async function renderHome(){
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
   loadAgenda();
   loadActivity();
+  loadBrief();
   try{const h=await api('/api/health');const r=h.relationship||{};
     const nm=cfg.name||r.user||'there';
     $('#hi').textContent=`Hi ${nm}!`;
@@ -1382,15 +1446,44 @@ async function testPush(){try{const r=await api('/api/push/test');pushStatus(r.s
 async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if(view==='profile')renderProfile();}catch(e){}}
 async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||''}})});return true;}catch(e){return false;}}
 
-/* ---------- LISTS (segmented) ---------- */
+/* ---------- LISTS: hub of 4 cards → separate full pages ---------- */
+// A phone bottom bar can't hold Tasks/Reminders/Notes/Goals as top-level tabs, so "Lists" is a hub:
+// 4 large cards (count + preview) that open their own full page (renderListPage) with a back link.
+const HUB_DEFS=[['tasks','check','Things to do'],['reminders','bell','Time-based nudges'],['notes','note','Thoughts & minutes'],['goals','target','What you’re aiming at']];
 function renderLists(){
   const main=$('#main');
   main.innerHTML=`<h1>Lists</h1>
-    <div class="seg" id="seg">
-      ${Object.keys(KIND_TITLE).map(k=>`<button data-k="${k}" class="${k===listKind?'on':''}">${KIND_TITLE[k]}</button>`).join('')}
+    <p style="color:var(--dim);margin:4px 2px 14px">Everything KRC keeps for you — tap a list to open it.</p>
+    <div class="hub" id="hub">${HUB_DEFS.map(([k,ic,sub])=>`
+      <button class="hub-card" onclick="show('${k}')" aria-label="${KIND_TITLE[k]}">
+        <div class="hub-top"><span class="hub-ic">${svgIcon(ic,22)}</span><span class="hub-n" id="hubn-${k}">–</span></div>
+        <div class="hub-t">${KIND_TITLE[k]}</div>
+        <div class="hub-sub" id="hubp-${k}">${sub}</div>
+      </button>`).join('')}</div>`;
+  loadHubCounts();
+}
+async function loadHubCounts(){
+  if(!cfg.token)return;
+  await Promise.all(HUB_DEFS.map(async ([k])=>{
+    try{const d=await api('/api/list/'+k);const rows=d.rows||[];const open=rows.filter(x=>!x.done);
+      const cnt=(k==='notes')?rows.length:open.length;
+      const n=$('#hubn-'+k);if(n)n.textContent=cnt;
+      const p=$('#hubp-'+k);const first=open[0]||rows[0];
+      if(p&&first&&first.text)p.textContent=first.text.slice(0,42);
+    }catch(e){}
+  }));
+  setDot(true);
+}
+// A single list opened as its own full page. Reuses the existing add/render logic (renderListInto).
+function renderListPage(kind){
+  listKind=kind;
+  const main=$('#main');
+  main.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin:2px 0 10px">
+      <button class="pill-btn" onclick="show('lists')" style="padding:8px 14px">‹ Lists</button>
+      <h1 style="margin:0;font-size:24px">${KIND_TITLE[kind]||kind}</h1>
     </div>
     <div id="listHost"></div>`;
-  main.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{listKind=b.dataset.k;main.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('on',x.dataset.k===listKind));renderListInto();});
   renderListInto();
 }
 async function renderListInto(){
@@ -1433,11 +1526,11 @@ function attachRow(row,sw,{tapEl,onTapText}){let x0=null,y0=null,dx=0,open=false
   row.addEventListener('pointermove',e=>{if(x0==null)return;const d=e.clientX-x0;if(Math.abs(d)>6||Math.abs(e.clientY-y0)>6)moved=true;dx=Math.min(0,Math.max(-W,d+(open?-W:0)));set(dx);});
   const end=e=>{if(x0==null)return;row.style.transition='transform .18s ease';if(!moved){set(open?-W:0);open=false;if(tapEl&&(e.target===tapEl||tapEl.contains(e.target)))onTapText&&onTapText();}else{open=dx<-W/2;set(open?-W:0);}x0=null;};
   row.addEventListener('pointerup',end);row.addEventListener('pointercancel',()=>{if(x0!=null){row.style.transition='transform .18s ease';set(open?-W:0);x0=null;}});}
-async function createItem(kind,text){text=(text||'').trim();if(!text)return false;try{await api('/api/create',{method:'POST',body:JSON.stringify({kind,text})});setDot(true);}catch(e){setDot(false);return false;}kspeak("Done — added that to your "+(KIND_TITLE[kind]||kind)+".");if(view==='lists'&&listKind===kind)renderListInto();return true;}
-async function addReminder(text,when){text=(text||'').trim();if(!text)return false;const body={kind:'reminders',text};if(when){const t=new Date(when).getTime();if(!isNaN(t))body.due_ts=Math.round(t/1000);}try{await api('/api/create',{method:'POST',body:JSON.stringify(body)});setDot(true);}catch(e){setDot(false);return false;}kspeak("Reminder set.");if(view==='lists'&&listKind==='reminders')renderListInto();return true;}
-async function createReminderMins(text,mins){try{await api('/api/create',{method:'POST',body:JSON.stringify({kind:'reminders',text,mins})});setDot(true);}catch(e){setDot(false);return;}kspeak("Reminder set for "+(mins<60?mins+' minutes':mins<1440?(mins/60)+' hours':'tomorrow')+".");if(view==='lists'&&listKind==='reminders')renderListInto();}
-async function toggle(kind,id,on){try{await api('/api/item/toggle',{method:'POST',body:JSON.stringify({kind,id})});setDot(true);}catch(e){setDot(false);}kspeak(on?"Nice — checked off.":"Okay, back on your list.");if(view==='lists'&&listKind===kind)renderListInto();}
-async function delItem(kind,id,swEl){if(swEl){swEl.style.transition='.18s';swEl.style.opacity='0';swEl.style.transform='scale(.96)';}try{await api('/api/item/delete',{method:'POST',body:JSON.stringify({kind,id})});setDot(true);}catch(e){setDot(false);}setTimeout(()=>{if(view==='lists'&&listKind===kind)renderListInto();},180);}
+async function createItem(kind,text){text=(text||'').trim();if(!text)return false;try{await api('/api/create',{method:'POST',body:JSON.stringify({kind,text})});setDot(true);}catch(e){setDot(false);return false;}kspeak("Done — added that to your "+(KIND_TITLE[kind]||kind)+".");if(view===kind)renderListInto();return true;}
+async function addReminder(text,when){text=(text||'').trim();if(!text)return false;const body={kind:'reminders',text};if(when){const t=new Date(when).getTime();if(!isNaN(t))body.due_ts=Math.round(t/1000);}try{await api('/api/create',{method:'POST',body:JSON.stringify(body)});setDot(true);}catch(e){setDot(false);return false;}kspeak("Reminder set.");if(view==='reminders')renderListInto();return true;}
+async function createReminderMins(text,mins){try{await api('/api/create',{method:'POST',body:JSON.stringify({kind:'reminders',text,mins})});setDot(true);}catch(e){setDot(false);return;}kspeak("Reminder set for "+(mins<60?mins+' minutes':mins<1440?(mins/60)+' hours':'tomorrow')+".");if(view==='reminders')renderListInto();}
+async function toggle(kind,id,on){try{await api('/api/item/toggle',{method:'POST',body:JSON.stringify({kind,id})});setDot(true);}catch(e){setDot(false);}kspeak(on?"Nice — checked off.":"Okay, back on your list.");if(view===kind)renderListInto();}
+async function delItem(kind,id,swEl){if(swEl){swEl.style.transition='.18s';swEl.style.opacity='0';swEl.style.transform='scale(.96)';}try{await api('/api/item/delete',{method:'POST',body:JSON.stringify({kind,id})});setDot(true);}catch(e){setDot(false);}setTimeout(()=>{if(view===kind)renderListInto();},180);}
 async function editItem(kind,id,text){try{await api('/api/item/edit',{method:'POST',body:JSON.stringify({kind,id,text})});setDot(true);}catch(e){setDot(false);}}
 
 /* ---------- PROFILE / SETTINGS ---------- */
