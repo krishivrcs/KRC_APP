@@ -610,15 +610,17 @@ async function loadActivity(){
     box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i" style="color:var(--accent-2);display:flex">${svgIcon(ic[e.kind]||'sparkle',15)}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
   }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load activity</div>';}
 }
-// Daily brief teaser on Home (GET /api/reflect/now). Cached per session so returning to Home doesn't
-// re-fire the LLM brief; tapping the card opens the full brief in Brain (goDailyBrief()).
-async function loadBrief(){
+// Daily-brief card on Home — an INVITATION, never an automatic fetch.
+// ⚠️ DO NOT make this auto-load. `/api/reflect/now` is not a read: it runs the LLM, INSERTs an
+// unsurfaced reflection (which the robot then SPEAKS at its next /api/proactive check-in) and
+// fires a web push. Auto-calling it on render meant every app-open burned free-tier LLM quota,
+// pushed a notification, and made the robot start talking unprompted. Generating the brief must
+// stay user-initiated — tapping the card routes to Brain via goDailyBrief(), exactly as the
+// "Daily brief" chip has always done.
+// ⚙️ A passive preview needs a READ-ONLY endpoint from BE (requested in KRC_SYNC §3).
+function briefHint(){
   const b=$('#briefBody');if(!b)return;
-  if(!cfg.token){b.textContent='Connect KRC to see your daily brief.';return;}
-  if(window._briefCache){b.textContent=window._briefCache;return;}
-  try{const d=await api('/api/reflect/now');const t=((d&&d.brief)||'').trim();
-    if(t){window._briefCache=t;b.textContent=t;}else b.textContent='Nothing to brief yet — enjoy the calm.';
-  }catch(e){b.textContent='Tap to hear today’s brief.';}
+  b.textContent = cfg.token ? 'Tap to hear today’s brief.' : 'Connect KRC to hear your daily brief.';
 }
 async function renderHome(){
   const main=$('#main');
@@ -658,7 +660,7 @@ async function renderHome(){
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
   loadAgenda();
   loadActivity();
-  loadBrief();
+  briefHint();
   try{const h=await api('/api/health');const r=h.relationship||{};
     const nm=cfg.name||r.user||'there';
     $('#hi').textContent=`Hi ${nm}!`;
