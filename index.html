@@ -197,13 +197,17 @@
   .brief-body{color:var(--txt);font-size:14px;line-height:1.55}
   /* Lists hub — 4 large cards */
   .hub{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:2px}
-  .hub-card{text-align:left;background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);padding:15px;box-shadow:var(--e2),var(--edge);display:flex;flex-direction:column;gap:5px;min-height:120px;transition:transform var(--t-micro) var(--ease-glass),box-shadow var(--t-micro)}
+  /* ⚠️ min-width:0 is LOAD-BEARING. A grid item defaults to min-width:auto, so the nowrap
+     preview text below (.hub-sub) forces its track WIDER than 1fr and the cards run off the
+     phone. Only shows up with REAL list text — an empty list's short fallback fits, which is
+     exactly how this shipped in v22. Do not remove it, on .hub-card or .hub-sub. */
+  .hub-card{min-width:0;text-align:left;background:var(--pane);background-image:var(--glass-sheen);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:var(--r);padding:15px;box-shadow:var(--e2),var(--edge);display:flex;flex-direction:column;gap:5px;min-height:120px;transition:transform var(--t-micro) var(--ease-glass),box-shadow var(--t-micro)}
   .hub-card:active{transform:scale(.97);box-shadow:var(--e2),var(--edge),var(--e-ember)}
   .hub-top{display:flex;align-items:center;justify-content:space-between}
   .hub-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--ember-12);color:var(--accent-2);flex:0 0 auto}
   .hub-n{font-family:var(--mono);font-size:25px;font-weight:700;color:var(--txt);line-height:1}
   .hub-t{font-size:16px;font-weight:700;margin-top:3px}
-  .hub-sub{color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hub-sub{min-width:0;color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chip:hover{background:var(--glass2);border-color:var(--line2);transform:translateY(-1px)}
   .chip .ci{color:var(--accent-2);display:flex}
 
@@ -571,6 +575,7 @@ function show(v){
   $('#composer').classList.toggle('hide',v!=='chat');
   window.scrollTo&&window.scrollTo(0,0);const _m=$('#main');if(_m)_m.scrollTop=0;
   if(v==='home')renderHome();
+  else if(v==='focus')renderFocus();
   else if(v==='chat')renderChat();
   else if(v==='meet')renderMeet();
   else if(v==='pc')renderPC();
@@ -594,21 +599,16 @@ function setupPomodoro(){pomoPaint();const s=$('#pomoStart'),r=$('#pomoReset');i
 function _timeAgo(ts){if(!ts)return'';let s=Math.max(0,Date.now()/1000-ts);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function renderFleet(dv){
   const box=$('#fleet');if(!box)return;
-  const defs=[['desk','Desk'],['nano','Nano'],['pc','PC']];
-  box.innerHTML=defs.map(([k,label])=>{
+  // The rect 1.83 registers under its OWN fleet key `desk183`; the round 1.85 uses `desk`.
+  // Accept either or an online Desk reads "not paired" — the same bug fixed on the desktop
+  // (view-home.js renderFleet / view-ecosystem.js _desk) and never ported here until now.
+  const defs=[[['desk183','desk'],'Desk'],[['nano'],'Nano'],[['pc'],'PC']];
+  box.innerHTML=defs.map(([keys,label])=>{
+    const k=keys.find(x=>dv[x])||keys[0];
     const d=dv[k],on=!!(d&&d.online);
     let sub= !d ? 'not paired' : (k==='pc'&&d.title ? escapeHtml(String(d.title)).slice(0,26) : (on?'online':'offline'));
     return `<div class="dev ${on?'on':''}"><span class="dd"></span><div class="dv-t"><b>${label}</b><span>${sub}</span></div></div>`;
   }).join('');
-}
-async function loadActivity(){
-  const box=$('#activity');if(!box)return;
-  if(!cfg.token){box.innerHTML='<div class="empty" style="padding:12px 0">Connect KRC to see its activity.</div>';return;}
-  try{const a=await api('/api/activity?limit=8');const ev=(a&&a.events)||[];
-    if(!ev.length){box.innerHTML='<div class="empty" style="padding:12px 0">Nothing yet — KRC logs what it does across your devices here.</div>';return;}
-    const ic={reminder:'bell',news:'news',insight:'bulb',brief:'clipboard',reactive:'chat',screen:'monitor',vision:'eye',companion:'sparkle'};
-    box.innerHTML=ev.map(e=>`<div class="act-row"><span class="act-i" style="color:var(--accent-2);display:flex">${svgIcon(ic[e.kind]||'sparkle',15)}</span><div class="act-t"><span>${escapeHtml(e.text||'')}</span><small>${escapeHtml((e.device||'').toUpperCase())} · ${_timeAgo(e.ts)}</small></div></div>`).join('');
-  }catch(e){box.innerHTML='<div class="empty" style="padding:12px 0">⚠ couldn’t load activity</div>';}
 }
 // Daily-brief card on Home — an INVITATION, never an automatic fetch.
 // ⚠️ DO NOT make this auto-load. `/api/reflect/now` is not a read: it runs the LLM, INSERTs an
@@ -622,6 +622,33 @@ function briefHint(){
   const b=$('#briefBody');if(!b)return;
   b.textContent = cfg.token ? 'Tap to hear today’s brief.' : 'Connect KRC to hear your daily brief.';
 }
+
+// Focus = the pomodoro's own page (owner 2026-07-16: "Focus card should not be on the homepage").
+// It is MOVED here, not deleted — the phone had no Focus surface, so removing the Home card would
+// have silently dropped the timer from the product. Mirrors the desktop's dedicated Focus page.
+// setupPomodoro() now runs here; POMO's interval keeps ticking across views (it always did).
+function renderFocus(){
+  const main=$('#main');
+  main.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin:2px 0 10px">
+      <button class="pill-btn" onclick="show('home')" style="padding:8px 14px">‹ Home</button>
+      <h1 style="margin:0;font-size:24px">Focus</h1>
+    </div>
+    <p style="color:var(--dim);margin:0 2px 14px">A timed session. KRC tells you when to switch.</p>
+    <div class="card focus-card">
+      <div class="focus-time" id="pomoTime">25:00</div>
+      <div class="focus-lbl" id="pomoLbl">Pomodoro · focus session</div>
+      <div class="focus-btns"><button class="pill-btn primary" id="pomoStart">▶ Start</button><button class="pill-btn" id="pomoReset">↺ Reset</button></div>
+    </div>
+    <h2 class="sec">While you focus</h2>
+    <div class="chips">
+      <button class="chip" onclick="show('tasks')"><span class="ci">${svgIcon('check',16)}</span>Tasks</button>
+      <button class="chip" onclick="show('reminders')"><span class="ci">${svgIcon('bell',16)}</span>Reminders</button>
+      <button class="chip" onclick="show('notes')"><span class="ci">${svgIcon('note',16)}</span>Notes</button>
+      <button class="chip" onclick="show('goals')"><span class="ci">${svgIcon('target',16)}</span>Goals</button>
+    </div>`;
+  setupPomodoro();
+}
 async function renderHome(){
   const main=$('#main');
   main.innerHTML=`
@@ -632,17 +659,6 @@ async function renderHome(){
       <div class="brief-body" id="briefBody">Tap for today's brief…</div>
     </div>
     <div class="fleet" id="fleet"></div>
-    <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
-    <h2 class="sec">Today</h2>
-    <div class="card" id="agenda"><div class="empty" style="padding:12px 0">loading…</div></div>
-    <h2 class="sec">What KRC’s been up to</h2>
-    <div class="card" id="activity"><div class="empty" style="padding:12px 0">loading…</div></div>
-    <h2 class="sec">Focus</h2>
-    <div class="card focus-card">
-      <div class="focus-time" id="pomoTime">25:00</div>
-      <div class="focus-lbl" id="pomoLbl">Pomodoro · focus session</div>
-      <div class="focus-btns"><button class="pill-btn primary" id="pomoStart">▶ Start</button><button class="pill-btn" id="pomoReset">↺ Reset</button></div>
-    </div>
     <h2 class="sec">Quick actions</h2>
     <div class="chips">
       <button class="chip" onclick="show('chat')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></span>Talk to KRC</button>
@@ -652,14 +668,16 @@ async function renderHome(){
       <button class="chip" onclick="show('gest')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 8V6a2 2 0 0 0-4 0v8a6 6 0 0 0 12 0v-3"/></svg></span>Gestures</button>
       <button class="chip" onclick="goDailyBrief()"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg></span>Daily brief</button>
       <button class="chip" onclick="show('reminders')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></span>Remind me</button>
-    </div>`;
-  setupPomodoro();
+      <button class="chip" onclick="show('focus')"><span class="ci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span>Focus timer</button>
+    </div>
+    <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
+    <h2 class="sec">Today</h2>
+    <div class="card" id="agenda"><div class="empty" style="padding:12px 0">loading…</div></div>`;
   setFaceEmo('idle');if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}   // living face is the Home hero
   if(!cfg.token){$('#hi').textContent='Connect KRC in You → Setup to begin.';return;}
   $('#qBtn').onclick=async()=>{if(await createItem('tasks',$('#qAdd').value)){$('#qAdd').value='';}};
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
   loadAgenda();
-  loadActivity();
   briefHint();
   try{const h=await api('/api/health');const r=h.relationship||{};
     const nm=cfg.name||r.user||'there';
