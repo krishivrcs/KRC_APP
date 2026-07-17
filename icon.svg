@@ -1,9 +1,43 @@
+<!-- KRC app icon — v2 "Ember-Gold Taby" (KRC_FACE_SPEC.md, owner-approved 2026-07-08).
+     Replaces the v1 CYAN icon (#2fe6ff), which was the last surviving artifact of the retired
+     palette anywhere in the apps — and the first thing a customer would ever see.
+     Faithful to the real face: obsidian ground, ember bloom, glowing rounded-rect eyes in the
+     eye-fill tone, calm smile. NO pupils and NO lids — v2 removed both. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#04070c"/>
-  <circle cx="256" cy="256" r="156" fill="none" stroke="#2fe6ff" stroke-width="9" opacity="0.45"/>
-  <circle cx="256" cy="256" r="186" fill="none" stroke="#2fe6ff" stroke-width="4" opacity="0.2"/>
-  <rect x="168" y="190" width="58" height="98" rx="27" fill="#eafcff"/>
-  <rect x="286" y="190" width="58" height="98" rx="27" fill="#eafcff"/>
-  <circle cx="197" cy="246" r="12" fill="#04070c"/>
-  <circle cx="315" cy="246" r="12" fill="#04070c"/>
+  <defs>
+    <!-- the ember horizon the face sits on, same idea as the apps' lit ground -->
+    <radialGradient id="ground" cx="50%" cy="42%" r="62%">
+      <stop offset="0%"   stop-color="#241a0e"/>
+      <stop offset="58%"  stop-color="#12100c"/>
+      <stop offset="100%" stop-color="#0a0b10"/>
+    </radialGradient>
+    <!-- the bloom BEHIND the eyes: this is what makes it read as glowing, not painted -->
+    <radialGradient id="bloom" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#FF8E2B" stop-opacity=".55"/>
+      <stop offset="55%"  stop-color="#FFB43E" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="#FFB43E" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="13" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- squircle body. rx=112 sits close to iOS's own mask so it never looks clipped. -->
+  <rect width="512" height="512" rx="112" fill="url(#ground)"/>
+
+  <!-- ember bloom -->
+  <ellipse cx="256" cy="252" rx="196" ry="150" fill="url(#bloom)"/>
+
+  <!-- HUD ring: one, ember, understated — the v1 icon's double cyan rings read as sci-fi clutter -->
+  <circle cx="256" cy="256" r="182" fill="none" stroke="#FFB43E" stroke-width="5" opacity=".22"/>
+
+  <!-- the face. Eye geometry mirrors the engine's idle preset (tall rounded rect, fully rounded
+       ends), in the spec's eye-fill tone, glowing rather than flat. -->
+  <g filter="url(#glow)">
+    <rect x="163" y="186" width="66" height="112" rx="33" fill="#FFE9C4"/>
+    <rect x="283" y="186" width="66" height="112" rx="33" fill="#FFE9C4"/>
+    <!-- calm smile: the idle mouth, a soft ember arc -->
+    <path d="M214 348 q42 30 84 0" fill="none" stroke="#FFC24A" stroke-width="15" stroke-linecap="round"/>
+  </g>
 </svg>
