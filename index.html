@@ -356,6 +356,85 @@ const cfg={
   if(hadQ)history.replaceState(null,'',location.pathname+location.hash);   // don't leave the token sitting in the URL bar/history
 }catch(e){}})();
 
+
+/* ================= THE ONE AMBIENT ENGINE — PORTED VERBATIM ==============================
+   Source of truth: 11_DESKTOP/ui/js/ambient.js   Spec: 00_STATE/KRC_AMBIENT_SPEC.md
+   Owner 2026-07-16: "all should react in sync, not like all with different reaction engine."
+
+   This is a COPY, and that is deliberate: the PWA is single-file / no-build / no-CDN, so it
+   cannot import the desktop module (same reason FACEP is duplicated here). The copy is pasted
+   VERBATIM and a test asserts this port and the desktop produce BIT-IDENTICAL output — if you
+   hand-edit one, the bodies silently drift apart and the fleet is out of sync again, which looks
+   exactly like the bug we just fixed. Change ambient.js, then re-copy. Never edit this in place.
+
+   Local random() is REPLACED by a hash of an 8s time bucket — that substitution IS the sync.
+   Only the existing 27 FACEP names are used => no cloud/BE change.
+   ====================================================================================== */
+const AMB = {
+  BEAT_SECS: 8,          // every body flips on the same 8s boundary
+  skew: 0,               // serverEpoch - localEpoch, from the last heartbeat
+  haveClock: false,      // NO heartbeat yet => render idle, never guess (a lone body inventing a beat is the bug)
+  persona: null,
+};
+
+// Cloud time. Never use raw device time: the ESP32s have no RTC and PC clocks drift.
+function ambSetClock(serverEpochSecs){
+  if(!serverEpochSecs) return;
+  AMB.skew = serverEpochSecs - Math.floor(Date.now()/1000);
+  AMB.haveClock = true;
+}
+function ambSetPersona(p){ if(p && typeof p === 'object') AMB.persona = p; }
+function ambNow(){ return Math.floor(Date.now()/1000) + AMB.skew; }
+
+// FNV-1a style 32-bit hash. Deterministic across JS and C++ (uint32 wraparound).
+function ambHash32(x){
+  let h = 0x811c9dc5 ^ (x >>> 0);
+  h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0x9e3779b1) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+function ambRnd(bucket, salt, n){
+  return ambHash32((bucket ^ Math.imul(salt, 0x9e3779b1)) >>> 0) % n;
+}
+// Weighted pick driven by the bucket hash — NOT random(). This is why every body agrees.
+function ambPick(w, bucket, salt){
+  let t = 0; for(const k in w) t += w[k];
+  if(t <= 0) return 'idle';
+  let r = ambRnd(bucket, salt, t);
+  for(const k in w){ r -= w[k]; if(r < 0) return k; }
+  return 'idle';
+}
+
+// The weight table — MUST match KRC_AMBIENT_SPEC.md §2c and every port, exactly.
+function ambWeights(p, hour){
+  const energy = (p && p.energy != null) ? p.energy : 60;
+  const mood   = (p && p.mood   != null) ? p.mood   : 55;
+  const cur    = (p && p.curiosity != null) ? p.curiosity : 55;
+  const w = { idle:14, curiosity:10, attention:6, thinking:5 };
+  if(energy < 25){ w.sleepy = 30; w.idle += 10; w.thinking += 4; }
+  else {
+    w.sleepy = (hour >= 23 || hour < 6) ? 16 : 2;
+    if(mood >= 62){ w.playful = 14; w.excited = 6; w.affection = 5; }
+    if(mood <= 38){ w.concerned = 10; w.sad = 4; }
+    if(cur  >= 62){ w.curiosity += 10; w.awe = 3; }
+    if(hour >= 9 && hour <= 18){ w.determined = 6; w.encouraging = 6; }
+  }
+  return w;
+}
+
+// THE function. Pure: (persona, cloud time) -> the face every body shows right now.
+function ambientEmotion(){
+  if(!AMB.haveClock) return 'idle';                 // no cloud clock -> do not invent a beat
+  const t = ambNow();
+  const bucket = Math.floor(t / AMB.BEAT_SECS);
+  const hour = new Date((t) * 1000).getHours();     // IST on the owner's box; robots use cloud `hour`
+  // Rare mischief — every 24th bucket (~192s) and only 25% of those, so it stays delightful.
+  if((bucket % 24) === 0 && ambRnd(bucket, 7, 100) < 25){
+    return ambPick({mischievous:5, naughty:3, sarcastic:2, playful:2}, bucket, 11);
+  }
+  return ambPick(ambWeights(AMB.persona, hour), bucket, 3);
+}
+
 async function api(path,opts={}){
   const headers=Object.assign({'X-KRC-Token':cfg.token},opts.headers||{});
   if(opts.body)headers['Content-Type']='application/json';
@@ -369,6 +448,15 @@ async function api(path,opts={}){
     ?'KRC took too long — it may be waking up. Give it a moment and try again.'
     :'Can’t reach KRC — check your connection or Setup.');}
   clearTimeout(t);
+  // THE SHARED CLOCK, for free: every cloud response carries the server's time in its HTTP `Date`
+  // header (CORS-safelisted, so readable). The ambient engine needs CLOUD time — not this phone's —
+  // so this app, the floating head, the Desk and the Nano all land on the same 8s beat.
+  // ⚠️ NOT /api/health.epoch: /api/health does not return one (verified in app.py; only
+  // POST /api/heartbeat does, and heartbeating from an app would register a phantom fleet device).
+  try{
+    const dh = r.headers && r.headers.get && r.headers.get('date');
+    if(dh){ const ms=Date.parse(dh); if(!isNaN(ms)) ambSetClock(Math.floor(ms/1000)); }
+  }catch(e){}
   if(!r.ok)throw new Error(r.status===401
     ?'Not paired yet — add your token in You → Setup.'
     :(r.status>=500?'KRC hit a server snag — give it a moment and try again.'
@@ -673,13 +761,16 @@ async function renderHome(){
     <div class="quick"><input id="qAdd" class="inp" placeholder="Quick‑add a task…"/><button class="add" id="qBtn">+</button></div>
     <h2 class="sec">Today</h2>
     <div class="card" id="agenda"><div class="empty" style="padding:12px 0">loading…</div></div>`;
-  setFaceEmo('idle');if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}   // living face is the Home hero
+  // The face is the Home hero. Its RESTING life comes from the shared ambient engine (one tick,
+  // above) — not from a hardcoded 'idle' — so it matches the head/Desk/Nano second-for-second.
+  setFaceEmo(ambientEmotion());if(!FACE.running){FACE.running=true;requestAnimationFrame(drawFace);}
   if(!cfg.token){$('#hi').textContent='Connect KRC in You → Setup to begin.';return;}
   $('#qBtn').onclick=async()=>{if(await createItem('tasks',$('#qAdd').value)){$('#qAdd').value='';}};
   $('#qAdd').addEventListener('keydown',e=>{if(e.key==='Enter')$('#qBtn').click();});
   loadAgenda();
   briefHint();
   try{const h=await api('/api/health');const r=h.relationship||{};
+    ambSetPersona(h.persona||{});   // persona = the STATE the shared ambient engine weights itself by
     const nm=cfg.name||r.user||'there';
     $('#hi').textContent=`Hi ${nm}!`;
     $('#hi2').textContent=`We’re on a ${r.streak_days||0}-day streak · ${r.interactions||0} chats.`;
@@ -1223,7 +1314,7 @@ async function send(){
   try{const d=await api('/krc',{method:'POST',body:JSON.stringify({message:msg})});
     showTyping(false);
     const reply=(d&&typeof d.reply==='string'?d.reply.trim():'')||'…';
-    addMsg('krc',reply);setDot(true);setFaceEmo((d&&d.emotion)||'idle');
+    addMsg('krc',reply);setDot(true);setFaceEmo((d&&d.emotion)||'idle');faceLive();   // real cloud emotion owns the face over ambient
     if(voiceOn||cfg.speak)speak(reply);
     if(d&&d.shot)showShot(d.shot);
     if(d&&d.file)showFile(d.file,d.file_name||'file');
@@ -1323,6 +1414,21 @@ const FACEP={
 };
 const EMAP={neutral:'idle',happy:'encouraging',love:'affection',surprised:'shock',curious:'curiosity',excitement:'excited',determination:'determined',anger:'angry',sleepiness:'sleepy'};
 function setFaceEmo(e){FACE.emo=(FACEP[e]?e:(FACEP[EMAP[e]]?EMAP[e]:'idle'));FACE.emoUntil=performance.now()+6000;}
+
+/* ---- ambient: what the face does when NOTHING is happening ----
+   Drives the Home hero from the ONE shared engine above, so this phone shows the SAME face as the
+   floating head / Desk / Nano on the same cloud second. Previously the PWA had no idle life at all
+   (a single setFaceEmo('idle') — the 5th and most static of the five old engines).
+   LIVE wins: a real cloud emotion (a chat reply, speaking, listening) owns the face for 30s. */
+let _liveUntil = 0, _ambLast = '';
+function faceLive(){ _liveUntil = Date.now() + 30000; }
+setInterval(()=>{
+  if(view!=='home' && view!=='chat') return;          // only when the face is on screen
+  if(FACE.speaking || FACE.listening) return;         // never fight a real interaction
+  if(Date.now() < _liveUntil) return;
+  const e = ambientEmotion();                          // 'idle' until the cloud clock arrives
+  if(e !== _ambLast){ _ambLast = e; setFaceEmo(e); }   // flip only on a real 8s bucket change
+}, 1000);
 function _rgF(c,a){const n=parseInt(c.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
 function _rp(g,pts,r){const n=pts.length;g.beginPath();for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n],c=pts[(i+2)%n];if(i===0)g.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);g.arcTo(b[0],b[1],(b[0]+c[0])/2,(b[1]+c[1])/2,r);}g.closePath();}
 function _symF(g,type,cx,topY,size,t){const fl=_rmF?0:Math.sin(t/500)*3;g.save();g.globalCompositeOperation='lighter';g.shadowColor=_rgF(_EM,.9);g.shadowBlur=size*.6;g.fillStyle='#FFE8C0';g.textAlign='center';g.textBaseline='middle';const y=topY+fl;

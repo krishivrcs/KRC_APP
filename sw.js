@@ -1,5 +1,5 @@
 /* KRC companion service worker — shell cache + push */
-const CACHE = 'krc-app-v24';
+const CACHE = 'krc-app-v25';
 // Vendored MediaPipe gesture engine (~17MB): big + rarely changes. Its own cache so it survives app
 // version bumps (no 17MB re-download on every update), and it is deliberately NOT in SHELL — it is
 // runtime-cached only when the user actually opens the Gestures view, so it never bloats first install.
