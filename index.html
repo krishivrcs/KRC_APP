@@ -50,6 +50,30 @@
        macOS/iOS -> SF Pro, Windows -> Segoe UI, Android/Linux -> Roboto/system-ui. */
     --font-ui:-apple-system,"Segoe UI",Roboto,system-ui,"Helvetica Neue",Arial,sans-serif;
     --font-round:"Segoe UI Rounded","SF Pro Rounded",ui-rounded,"Varela Round",var(--font-ui);
+    /* ===== Nexus Sphere — Crimson identity tokens (only live when body.nexus is set).
+       Kept on their own --nexus-* names so the Ember-Gold app never collides; body.nexus copies
+       them onto the canonical tokens so the WHOLE var-driven app reskins at once (spec: "swap =
+       full reskin"). Mirrors 11_DESKTOP/ui/widget.html verbatim so PC + phone match. ===== */
+    --nexus-core:#FF5A6E; --nexus-core-hot:#FF8A96; --nexus-accent:#FFB24C; --nexus-peak:#FFE6EA;
+    --nexus-bg0:#0A0608; --nexus-bg1:#150A0E; --nexus-struct:#3A1018; --nexus-struct2:#5C1926;
+    --nexus-ink:#F3D9DD; --nexus-ink-dim:#BC8890; --nexus-ink-mut:#7C4C55;
+  }
+  /* body.nexus = "Nexus Sphere" identity on. One class swap recolours every var-driven surface
+     (buttons, chips, header, cards) to Crimson; defaults remain Ember-Gold Taby when it's off.
+     Face engine swaps separately in JS (drawFace dispatcher reads getFaceMode()) — both flip live,
+     no app refresh, which is the desktop bug ("changing the option did nothing") fixed at the source. */
+  body.nexus{
+    --bg:#0A0608; --bg2:#150A0E;
+    --accent:#FF5A6E; --accent-2:#FF8A96; --accent-glow:#FFB24C;
+    --violet:var(--accent); --blue:var(--accent-glow); --cyan:var(--accent-2); --warm:#FF5A6E; --pink:#FF8A96;
+    --grad:linear-gradient(135deg,var(--accent-2),var(--accent-glow));
+    --grad-warm:linear-gradient(135deg,#FF5A6E,#FF8A96);
+    --txt:#F3D9DD; --dim:#BC8890; --faint:#7C4C55;
+    --line:rgba(92,25,38,.55); --line2:rgba(255,90,110,.30);
+    --pane:rgba(21,10,14,.86);
+    --ember-06:rgba(255,90,110,.06); --ember-12:rgba(255,90,110,.12);
+    --ember-22:rgba(255,90,110,.22); --ember-40:rgba(255,90,110,.40);
+    --e-ember:0 6px 26px rgba(255,90,110,.30); --e-ember-hi:0 8px 34px rgba(255,90,110,.44);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   html,body{height:100%}
@@ -209,6 +233,7 @@
   .hub-t{font-size:16px;font-weight:700;margin-top:3px}
   .hub-sub{min-width:0;color:var(--dim);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chip:hover{background:var(--glass2);border-color:var(--line2);transform:translateY(-1px)}
+  .chip.on{background:var(--grad);color:#0a0c18;border-color:transparent}
   .chip .ci{color:var(--accent-2);display:flex}
 
   .focus-card{text-align:center}
@@ -347,6 +372,20 @@ const cfg={
   set eleven(v){localStorage.krcEleven=v?'1':'0';},
   get onboarded(){return localStorage.krcOnboarded==='1';},
   set onboarded(v){localStorage.krcOnboarded=v?'1':'0';},
+  get geminiMode(){return localStorage.krcGeminiMode||'auto';},
+  set geminiMode(v){localStorage.krcGeminiMode=v;},
+  get geminiVoice(){return localStorage.krcGeminiVoice||'Aoede';},
+  set geminiVoice(v){localStorage.krcGeminiVoice=v;},
+  get geminiOutput(){return localStorage.krcGeminiOutput||'desk';},
+  set geminiOutput(v){localStorage.krcGeminiOutput=v;},
+  get geminiPrivacy(){return localStorage.krcGeminiPrivacy==='1';},
+  set geminiPrivacy(v){localStorage.krcGeminiPrivacy=v?'1':'0';},
+  get geminiKeyStatus(){return localStorage.krcGeminiKeyStatus||'none';},
+  set geminiKeyStatus(v){localStorage.krcGeminiKeyStatus=v;},
+  get geminiKeyMasked(){return localStorage.krcGeminiKeyMasked||'';},
+  set geminiKeyMasked(v){localStorage.krcGeminiKeyMasked=v;},
+  get geminiLiveActive(){return localStorage.krcGeminiLiveActive==='1';},
+  set geminiLiveActive(v){localStorage.krcGeminiLiveActive=v?'1':'0';},
 };
 // One-scan setup from the box QR: ?token=XXX&url=YYY  (re-applied every launch — iOS PWA isolation)
 (function(){try{const q=new URLSearchParams(location.search);
@@ -1518,14 +1557,94 @@ function _renderFace(g,W,H,d,t){
   if(d.hands)_handsF(g,W,H,d.hands,glow,t);
   if(d.sym)_symF(g,d.sym,cx+gap*.62,cyE-eh*.85,W*.11,t);
 }
+/* ===================== NEXUS SPHERE — Tier-A Crimson 3D face =====================
+   Deliberate verbatim port of the krc-phone.html mockup's sphere() (owner-approved 2026-07-24).
+   The PWA is single-file / no-build, so it CANNOT import 11_DESKTOP/ui/js/nexus-sphere.js —
+   same reason FACEP + ambient.js are inlined here. The desktop engine + KRC_FACE_SPEC_NEXUS_SPHERE.md
+   §3 remain the SOURCE OF TRUTH; keep this phone port feature-parity with them. Don't edit one
+   without the other or the fleet visibly drifts.
+
+   Uses JS colour constants CORE/ACC (NOT CSS vars), so switching the app's --accent to Crimson via
+   body.nexus can't disturb the sphere, and the Ember-Gold app can't tint it back. Reuses ALL existing
+   voice / ambient / mic plumbing: it just reads FACE.speaking / .listening / .emo each frame, so
+   kspeak(), the mic ring, and the shared ambient beat drive the sphere with zero new wiring. */
+
+let _faceMode=null;
+function getFaceMode(){if(_faceMode)return _faceMode;try{_faceMode=localStorage.krcFaceMode||'taby';}catch(e){_faceMode='taby';}return _faceMode;}
+function setFaceMode(mode){mode=(mode==='nexus')?'nexus':'taby';try{localStorage.krcFaceMode=mode;}catch(e){}_faceMode=mode;
+  document.body.classList.toggle('nexus',mode==='nexus');                  // flip the whole Crimson reskin live
+  if(mode!=='nexus'){const f=document.getElementById('face');
+    // Hand the canvas back to Taby at its native attr dims. CANNOT use getAttribute('width') — canvas.width
+    // is a REFLECTED idl attr, so drawNexus() setting cv.width=544 rewrites the attribute to "544"; reading it
+    // back would hand Taby the DPR-scaled size and break its geometry. Re-derive from the active view instead.
+    if(f){const W=(view==='home')?360:300,H=(view==='home')?210:175;f.width=W;f.height=H;}}
+  faceLive();                                                              // re-seed the LIVE window so a switch reads as real activity
+}
+// Apply the Crimson skin ASAP at script-eval (#app is display:none until boot(), so no flash).
+document.body.classList.toggle('nexus', getFaceMode()==='nexus');
+
+const _NX={TAU:Math.PI*2,reduce:matchMedia('(prefers-reduced-motion:reduce)').matches};
+function nxNorm(v){const l=Math.hypot(v[0],v[1],v[2]);return[v[0]/l,v[1]/l,v[2]/l];}
+function nxIcosphere(sub){const t=(1+Math.sqrt(5))/2;let V=[[-1,t,0],[1,t,0],[-1,-t,0],[1,-t,0],[0,-1,t],[0,1,t],[0,-1,-t],[0,1,-t],[t,0,-1],[t,0,1],[-t,0,-1],[-t,0,1]].map(nxNorm);
+  let F=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  for(let s=0;s<sub;s++){const nf=[],c={};const mid=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;if(c[k]!=null)return c[k];const va=V[a],vb=V[b];V.push(nxNorm([(va[0]+vb[0])/2,(va[1]+vb[1])/2,(va[2]+vb[2])/2]));return c[k]=V.length-1;};for(const f of F){const a=mid(f[0],f[1]),b=mid(f[1],f[2]),d=mid(f[2],f[0]);nf.push([f[0],a,d],[f[1],b,a],[f[2],d,b],[a,b,d]);}F=nf;}
+  const es={},E=[];for(const f of F)for(let i=0;i<3;i++){const a=f[i],b=f[(i+1)%3],k=a<b?a+'_'+b:b+'_'+a;if(!es[k]){es[k]=1;E.push([a,b]);}}return{V,E};}
+const NX_CORE=[255,90,110],NX_ACC=[255,178,76];
+function nxRgba(c,a){return'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+a+')';}
+function nxMix(a,b,t){return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+function nxSprite(core){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const rg=g.createRadialGradient(32,32,0,32,32,32);rg.addColorStop(0,'rgba(255,255,255,1)');rg.addColorStop(.22,nxRgba(nxMix(core,[255,255,255],.42),.95));rg.addColorStop(.5,nxRgba(core,.4));rg.addColorStop(1,nxRgba(core,0));g.fillStyle=rg;g.beginPath();g.arc(32,32,32,0,_NX.TAU);g.fill();return c;}
+const NX_GEOM=nxIcosphere(2);                                   // 162 verts, ~480 edges — built once
+const NX_SIG=[];for(let i=0;i<7;i++)NX_SIG.push({e:(Math.random()*NX_GEOM.E.length)|0,p:Math.random(),spd:.15+Math.random()*.4});
+const NX_NODE=nxSprite(NX_CORE),NX_SIGSPR=nxSprite(NX_ACC);
+const NX_P=[];for(let i=0;i<NX_GEOM.V.length;i++)NX_P.push({x:0,y:0,z:0,depth:0,persp:1});  // persistent projection pool (alloc-free)
+const NX_ORD=[];for(let i=0;i<NX_GEOM.V.length;i++)NX_ORD.push(i);
+_NX.mx=0;_NX.tmx=0;_NX.kick=0;_NX.lastState='idle';_NX.W=0;_NX.H=0;_NX.dpr=1;_NX.cv=null;_NX.ctx=null;_NX.ro=null;_NX.dirty=1;
+function drawNexus(now,cv){
+  if(_NX.cv!==cv){                                              // Home/Chat swap #face via innerHTML — rebind
+    _NX.cv=cv;_NX.ctx=cv.getContext('2d');
+    if(_NX.ro)_NX.ro.disconnect();
+    if(typeof ResizeObserver!=='undefined'){_NX.ro=new ResizeObserver(()=>{_NX.dirty=1;});_NX.ro.observe(cv);}
+    cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect();_NX.tmx=((e.clientX-r.left)/r.width-.5)*2;},{passive:true});
+    _NX.dirty=1;
+  }
+  const ctx=_NX.ctx;if(!ctx)return;
+  if(_NX.dirty){const r=cv.getBoundingClientRect();_NX.dpr=Math.min(devicePixelRatio||1,1.75);_NX.W=Math.max(2,r.width);_NX.H=Math.max(2,r.height);cv.width=Math.max(2,Math.floor(_NX.W*_NX.dpr));cv.height=Math.max(2,Math.floor(_NX.H*_NX.dpr));ctx.setTransform(_NX.dpr,0,0,_NX.dpr,0,0);_NX.dirty=0;}
+  const W=_NX.W,H=_NX.H,t=now/1000;
+  _NX.mx+=(_NX.tmx-_NX.mx)*.06;_NX.kick*=.94;
+  // Derive the sphere state from the SAME FACE object Taby uses → voice/ambient/mic own the sphere too.
+  const cs=FACE.speaking?'speaking':FACE.listening?'listening':(FACE.emo==='thinking'?'thinking':'idle');
+  if(cs!==_NX.lastState){_NX.lastState=cs;_NX.kick=1.0;}
+  const cx=W/2,cy=H*0.42,R=Math.min(W,H)*(H>200?0.30:0.44);
+  const spin=cs==='thinking'?0.7:cs==='listening'?0.15:0.32;const breath=1+0.02*Math.sin(t*1.2)+_NX.kick*0.07;
+  const ay=t*spin+_NX.mx*0.6,ax=-0.32+0.05*Math.sin(t*0.6);
+  ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(cx,cy);
+  ctx.globalCompositeOperation='lighter';const sw=t*0.55%_NX.TAU;ctx.rotate(sw);
+  const wg=ctx.createRadialGradient(0,0,R*0.3,0,0,R*1.8);wg.addColorStop(0,nxRgba(NX_CORE,0));wg.addColorStop(1,nxRgba(NX_CORE,.09));ctx.fillStyle=wg;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R*1.8,-0.45,0);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=nxRgba(NX_ACC,.4);ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(R*1.8,0);ctx.stroke();ctx.rotate(-sw);ctx.globalCompositeOperation='source-over';
+  for(let i=0;i<60;i++){const a=i/60*_NX.TAU,big=i%5===0;ctx.strokeStyle=big?nxRgba(NX_CORE,.32):nxRgba(NX_CORE,.09);ctx.lineWidth=1;const r0=R*1.78,r1=r0+(big?6:3);ctx.beginPath();ctx.moveTo(Math.cos(a)*r0,Math.sin(a)*r0);ctx.lineTo(Math.cos(a)*r1,Math.sin(a)*r1);ctx.stroke();}
+  [1.42,1.62].forEach((rm,idx)=>{ctx.save();ctx.rotate(t*.2*(idx?-1:1));ctx.strokeStyle=nxRgba(NX_CORE,.2);ctx.lineWidth=1;ctx.setLineDash(idx?[R*.12,R*.08]:[]);ctx.beginPath();ctx.arc(0,0,R*rm,.3,_NX.TAU-.3);ctx.stroke();ctx.setLineDash([]);ctx.restore();});
+  ctx.restore();
+  const cay=Math.cos(ay),say=Math.sin(ay),cax=Math.cos(ax),sax=Math.sin(ax);
+  for(let i=0;i<NX_GEOM.V.length;i++){const v=NX_GEOM.V[i],x=v[0],y=v[1],z=v[2];const x1=x*cay+z*say,z1=-x*say+z*cay;const y2=y*cax-z1*sax,z2=y*sax+z1*cax;const persp=3.2/(3.2+z2*breath),p=NX_P[i];p.x=cx+x1*R*breath*persp;p.y=cy+y2*R*breath*persp;p.z=z2;p.depth=(z2+1)/2;p.persp=persp;}
+  for(const e of NX_GEOM.E){const pa=NX_P[e[0]],pb=NX_P[e[1]],dep=(pa.depth+pb.depth)/2;ctx.strokeStyle=nxRgba(NX_CORE,0.05+dep*0.42);ctx.lineWidth=0.5+dep;ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();}
+  ctx.globalCompositeOperation='lighter';const sspd=cs==='thinking'?2.2:(cs==='listening'||cs==='speaking')?1.6:1;
+  for(const s of NX_SIG){s.p+=s.spd*0.016*sspd;if(s.p>1){s.p=0;s.e=(Math.random()*NX_GEOM.E.length)|0;}const pa=NX_P[NX_GEOM.E[s.e][0]],pb=NX_P[NX_GEOM.E[s.e][1]];const x=pa.x+(pb.x-pa.x)*s.p,y=pa.y+(pb.y-pa.y)*s.p,z=8*((pa.depth+pb.depth)/2+.3);ctx.globalAlpha=.9;ctx.drawImage(NX_SIGSPR,x-z,y-z,z*2,z*2);}
+  ctx.globalAlpha=1;NX_ORD.sort((i,j)=>NX_P[i].depth-NX_P[j].depth);
+  for(const i of NX_ORD){const p=NX_P[i];const pulse=1+.3*Math.sin(t*2.5+i*.7),z=(2+p.depth*4.6)*pulse*p.persp;ctx.globalAlpha=.35+p.depth*.65;ctx.drawImage(NX_NODE,p.x-z,p.y-z,z*2,z*2);}
+  ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+}
+
 function drawFace(){
   const c=document.getElementById('face');if(!c||(view!=='chat'&&view!=='home')){FACE.running=false;return;}
-  const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now();
-  if(FACE.emoUntil&&now>FACE.emoUntil){FACE.emo='idle';FACE.emoUntil=0;}
-  let d=FACEP[FACE.emo]||FACEP.idle;
-  if(FACE.speaking){d=applySpeakMouth(d,now);}
-  if(FACE.listening){d=Object.assign({},d);d.ring=true;}
-  _renderFace(g,W,H,d,now);
+  if(getFaceMode()==='nexus'){drawNexus(performance.now(),c);}
+  else{
+    const g=c.getContext('2d'),W=c.width,H=c.height,now=performance.now();
+    if(FACE.emoUntil&&now>FACE.emoUntil){FACE.emo='idle';FACE.emoUntil=0;}
+    let d=FACEP[FACE.emo]||FACEP.idle;
+    if(FACE.speaking){d=applySpeakMouth(d,now);}
+    if(FACE.listening){d=Object.assign({},d);d.ring=true;}
+    _renderFace(g,W,H,d,now);
+  }
   requestAnimationFrame(drawFace);
 }
 
@@ -1569,8 +1688,8 @@ async function enablePush(){
 async function testPush(){try{const r=await api('/api/push/test');pushStatus(r.sent?('Sent — check your notifications.'):'No subscribed devices yet — tap “Enable” first.');}catch(e){pushStatus('⚠ '+e.message);}}
 
 /* ---------- settings sync ---------- */
-async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if(view==='profile')renderProfile();}catch(e){}}
-async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||''}})});return true;}catch(e){return false;}}
+async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if('geminiMode'in s)cfg.geminiMode=s.geminiMode;if('geminiVoice'in s)cfg.geminiVoice=s.geminiVoice;if('geminiOutput'in s)cfg.geminiOutput=s.geminiOutput;if('geminiPrivacy'in s)cfg.geminiPrivacy=!!s.geminiPrivacy;if('geminiKeyStatus'in s)cfg.geminiKeyStatus=s.geminiKeyStatus;if('geminiKeyMasked'in s)cfg.geminiKeyMasked=s.geminiKeyMasked;if(view==='profile')renderProfile();}catch(e){}}
+async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||'',geminiMode:cfg.geminiMode||'auto',geminiVoice:cfg.geminiVoice||'Aoede',geminiOutput:cfg.geminiOutput||'desk',geminiPrivacy:cfg.geminiPrivacy||false,geminiKeyStatus:cfg.geminiKeyStatus||'none',geminiKeyMasked:cfg.geminiKeyMasked||''}})});return true;}catch(e){return false;}}
 
 /* ---------- LISTS: hub of 4 cards → separate full pages ---------- */
 // A phone bottom bar can't hold Tasks/Reminders/Notes/Goals as top-level tabs, so "Lists" is a hub:
@@ -1662,26 +1781,122 @@ async function editItem(kind,id,text){try{await api('/api/item/edit',{method:'PO
 /* ---------- PROFILE / SETTINGS ---------- */
 function renderProfile(){
   const main=$('#main');
+  // Gemini Live defaults / state
+  const gMode = cfg.geminiMode || 'auto';
+  const gVoice = cfg.geminiVoice || 'Aoede';
+  const gOutput = cfg.geminiOutput || 'desk';
+  const gPrivacy = cfg.geminiPrivacy || false;
+  const gKeyStatus = cfg.geminiKeyStatus || 'none'; // none | valid | invalid
+  const gKeyMasked = cfg.geminiKeyMasked || '';
+  const gLiveActive = cfg.geminiLiveActive || false;
+
+  const VOICES_GEMINI = ['Aoede','Charon','Fenrir','Kore','Puck','Zephyr','Leda','Orus','Autonoe','Enceladus','Iapetus','Umbriel'];
+  const OUTPUT_TARGETS = [['desk','Desk Robot (ESP32-S3)'],['nano','Nano Robot'],['phone','This Phone (PWA)'],['pc','PC Agent (Local)']];
+
+  function geminiKeyStatusHTML(status, masked){
+    if(status==='valid') return '<span style="color:var(--ok)">'+svgIcon("check-circle",14)+' Valid key saved · '+masked+'</span>';
+    if(status==='invalid') return '<span style="color:var(--warn)">'+svgIcon("alert-triangle",14)+' Invalid key · '+masked+'</span>';
+    return '<span style="color:var(--dim)">No key saved · get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent)">Google AI Studio</a></span>';
+  }
+  function geminiModeHint(mode){
+    if(mode==='cloud') return '☁ Runs on KRC Cloud (Render) — audio streams through cloud, lowest latency if near server.';
+    if(mode==='local') return '💻 Runs on your PC via PC Agent — audio never leaves your LAN, best privacy.';
+    return '🔄 Auto: Local PC if online, otherwise Cloud — recommended for most users.';
+  }
+
   main.innerHTML=`
     <h1>You</h1>
     <div class="hero" style="margin-top:8px">${orbHTML('small')}<div class="htxt"><b>${escapeHtml(cfg.name||'Set your name')}</b><p>${cfg.token?'Connected to your KRC':'Not connected yet'}</p></div></div>
 
     <h2 class="sec">Voice</h2>
     <div class="set-group">
-      <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></span><div class="sg"><b>Speak out loud</b><p>Replies &amp; app actions</p></div><div class="sw ${cfg.speak?'on':''}" id="setSpeak"></div></div>
+      <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></span><div class="sg"><b>Speak out loud</b><p>Replies & app actions</p></div><div class="sw ${cfg.speak?'on':''}" id="setSpeak"></div></div>
       <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/></svg></span><div class="sg"><b>ElevenLabs voice</b><p>Premium (optional · monthly cap)</p></div><div class="sw ${cfg.eleven?'on':''}" id="setEleven"></div></div>
       <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg></span><div class="sg"><b>Voice</b><p>Free · unlimited</p><select class="inp" id="setVoice" style="margin-top:8px;padding:10px 12px"></select></div></div>
     </div>
-    <button class="btn ghost" id="voiceTest">${svgIcon('volume-up',16)} Hear KRC’s voice</button>
+    <button class="btn ghost" id="voiceTest">${svgIcon('volume-up',16)} Hear KRC's voice</button>
+
+    <h2 class="sec">Gemini Live (Conversational Brain)</h2>
+    <div class="set-group">
+      <!-- Key Setup -->
+      <div class="set-item" id="geminiKeyRow">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <div class="sg" style="flex:1;min-width:0">
+          <b>Gemini API Key (BYOK)</b>
+          <p style="margin:4px 0 0">Personal key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent)">Google AI Studio</a> · encrypted at rest · never logged</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <input class="inp" id="geminiKeyInput" type="password" placeholder="AIza..." value="${escapeHtml(gKeyMasked)}" style="flex:1;min-width:180px"/>
+            <button class="btn" id="geminiKeyValidate" ${!cfg.token?'disabled':''}>Validate & Save</button>
+            <button class="btn ghost" id="geminiKeyClear" ${!cfg.token||gKeyStatus==='none'?'disabled':''}>Remove</button>
+          </div>
+          <div class="status" id="geminiKeyStatus" style="margin-top:8px;min-height:20px">${geminiKeyStatusHTML(gKeyStatus, gKeyMasked)}</div>
+        </div>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="set-item">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <div class="sg" style="flex:1;min-width:0"><b>Conversation Mode</b><p>Where the conversation brains run</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <label class="chip ${gMode==='cloud'?'on':''}" data-mode="cloud"><input type="radio" name="geminiMode" value="cloud" ${gMode==='cloud'?'checked':''} style="display:none"/>☁ Cloud</label>
+          <label class="chip ${gMode==='local'?'on':''}" data-mode="local"><input type="radio" name="geminiMode" value="local" ${gMode==='local'?'checked':''} style="display:none"/>💻 Local PC</label>
+          <label class="chip ${gMode==='auto'?'on':''}" data-mode="auto"><input type="radio" name="geminiMode" value="auto" ${gMode==='auto'?'checked':''} style="display:none"/>🔄 Auto</label>
+        </div>
+        <div class="status" style="margin-top:6px;color:var(--dim);font-size:12px" id="geminiModeHint">${geminiModeHint(gMode)}</div>
+      </div>
+
+      <!-- Voice Picker (Gemini Live voices) -->
+      <div class="set-item">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></span>
+        <div class="sg" style="flex:1;min-width:0"><b>Gemini Live Voice</b><p>Voice personality for conversational replies</p></div>
+        <select class="inp" id="geminiVoiceSel" style="margin-top:8px;padding:10px 12px;flex:1;min-width:180px">
+          ${VOICES_GEMINI.map(v=>'<option value="'+v+'" '+(v===gVoice?'selected':'')+'>'+v+'</option>').join('')}
+        </select>
+      </div>
+
+      <!-- Output Target -->
+      <div class="set-item">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <div class="sg" style="flex:1;min-width:0"><b>Speak Out On</b><p>Where KRC should play audio</p></div>
+        <select class="inp" id="geminiOutputSel" style="margin-top:8px;padding:10px 12px;flex:1;min-width:180px">
+          ${OUTPUT_TARGETS.map(([v,l])=>'<option value="'+v+'" '+(v===gOutput?'selected':'')+'>'+l+'</option>').join('')}
+        </select>
+      </div>
+
+      <!-- Live Indicator -->
+      <div class="set-item">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <div class="sg" style="flex:1;min-width:0"><b>Live Session Indicator</b><p>Visual cue when Gemini is listening/responding</p></div>
+        <div class="sw ${gLiveActive?'on':''}" id="geminiLiveIndicator" style="pointer-events:none" aria-live="polite"></div>
+      </div>
+
+      <!-- Privacy Mode -->
+      <div class="set-item">
+        <span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <div class="sg"><b>Privacy Mode (Local Only)</b><p>Force all conversations through your PC — audio never leaves your LAN</p></div>
+        <div class="sw ${gPrivacy?'on':''}" id="geminiPrivacyToggle" ${!cfg.token?'style="opacity:0.5;pointer-events:none"':''}></div>
+      </div>
+    </div>
 
     <h2 class="sec">Notifications</h2>
     <div style="display:flex;gap:10px"><button class="btn ghost" id="pushOn" style="flex:1">${svgIcon('bell',16)} Enable</button><button class="btn ghost" id="pushTest" style="flex:1">Send test</button></div>
-    <div class="status" id="pushStatus">KRC can ping your phone with briefs &amp; insights even when closed. iPhone: install to Home Screen first.</div>
+    <div class="status" id="pushStatus">KRC can ping your phone with briefs & insights even when closed. iPhone: install to Home Screen first.</div>
+
+    <h2 class="sec">Companion face</h2>
+    <div class="set-group">
+      <div class="set-item"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+        <div class="sg"><b>Face style</b><p>Choose the companion face — Taby (Ember-Gold 2D, 27 expressions) or Nexus Sphere (Crimson 3D core + HUD). Swaps the whole theme live — no refresh needed.</p>
+        <select class="inp" id="faceModeSel" style="margin-top:8px;padding:10px 12px">
+          <option value="taby" ${getFaceMode()==='taby'?'selected':''}>Taby — Ember-Gold 2D (27 expressions)</option>
+          <option value="nexus" ${getFaceMode()==='nexus'?'selected':''}>Nexus — Crimson 3D core (4 states + HUD)</option>
+        </select>
+      </div></div>
+    </div>
 
     <h2 class="sec">App</h2>
     <div class="set-group">
       <div class="set-item" id="installRow"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></span><div class="sg"><b>Install KRC as an app</b><p id="installHintP">Add to your home screen</p></div></div>
-      <div class="set-item" id="setupRow"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><div class="sg"><b>Re‑run setup</b><p>Pairing, Wi‑Fi &amp; personalize</p></div></div>
+      <div class="set-item" id="setupRow"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><div class="sg"><b>Re-run setup</b><p>Pairing, Wi-Fi & personalize</p></div></div>
     </div>
 
     <h2 class="sec">Connection</h2>
@@ -1692,15 +1907,20 @@ function renderProfile(){
     </div>
     <button class="btn" id="saveBtn">Save</button>
     <div class="status" id="sStatus"></div>
-    <div class="status" style="margin-top:22px;color:var(--faint);text-align:center">KRC companion · free &amp; synced across your robot, desktop &amp; phone. Your token is stored only on this device.</div>
+    <div class="status" style="margin-top:22px;color:var(--faint);text-align:center">KRC companion · free & synced across your robot, desktop & phone. Your token is stored only on this device.</div>
     <div style="height:20px"></div>`;
 
   // voice list
-  (function fill(){loadVoices();const sel=$('#setVoice');if(!sel)return;if(!_voices.length){sel.innerHTML='<option value="">(loading voices…)</option>';setTimeout(fill,400);return;}const cur=localStorage.krcVoice||'';sel.innerHTML='<option value="">Auto — best British male</option>'+_voices.map(v=>`<option value="${escapeHtml(v.name)}" ${v.name===cur?'selected':''}>${escapeHtml(v.name)} — ${v.lang}</option>`).join('');})();
+  (function fill(){loadVoices();const sel=$('#setVoice');if(!sel)return;if(!_voices.length){sel.innerHTML='<option value="">(loading voices…)</option>';setTimeout(fill,400);return;}const cur=localStorage.krcVoice||'';sel.innerHTML='<option value="">Auto — best British male</option>'+_voices.map(v=>'<option value="'+escapeHtml(v.name)+'" '+(v.name===cur?'selected':'')+'>'+escapeHtml(v.name)+' — '+v.lang+'</option>').join('');})();
   $('#setSpeak').onclick=function(){this.classList.toggle('on');cfg.speak=this.classList.contains('on');syncSettingsUp();};
   $('#setEleven').onclick=function(){this.classList.toggle('on');cfg.eleven=this.classList.contains('on');syncSettingsUp();};
   $('#voiceTest').onclick=()=>{localStorage.krcVoice=$('#setVoice').value;cfg.eleven=$('#setEleven').classList.contains('on');speak("Good evening. I am KRC, your companion. All systems are online.");};
   $('#pushOn').onclick=enablePush;$('#pushTest').onclick=testPush;
+  // Face-style switch — LIVE, no refresh. This is the desktop bug ("changing the option did nothing",
+  // because nexus-sphere.js wasn't in the bundle + nothing re-bound the canvas) fixed at the source:
+  // the dispatcher reads getFaceMode() every frame, so setFaceMode() alone flips both the Crimson
+  // skin (body.nexus) and the engine. Re-seed so the face is already alive when they go look.
+  const fms=$('#faceModeSel');if(fms)fms.onchange=function(){setFaceMode(this.value);};
   $('#installHintP').textContent=installHint();
   $('#installRow').onclick=async()=>{if(!(await installApp()))$('#installHintP').textContent=installHint();};
   $('#setupRow').onclick=startOnboarding;
@@ -1715,10 +1935,93 @@ function renderProfile(){
     const syncOk=await syncSettingsUp();
     $('#sStatus').textContent=(healthOk&&syncOk)
       ?'Saved ✓ · synced to all your devices'
-      :'Saved locally, but couldn’t reach KRC — check your token/URL.';
+      :'Saved locally, but couldnt reach KRC — check your token/URL.';
+  };
+
+  // === Gemini Live UI handlers ===
+  // Key validation
+  $('#geminiKeyValidate').onclick=async()=>{
+    const input=$('#geminiKeyInput');
+    const key=input.value.trim();
+    if(!key){input.focus();return;}
+    const btn=$('#geminiKeyValidate');
+    btn.disabled=true;btn.textContent='Validating...';
+    try{
+      const res=await api('/api/settings/gemini-key',{method:'POST',body:JSON.stringify({key})});
+      if(res.ok){
+        cfg.geminiKeyStatus='valid';
+        // mask key for display
+        cfg.geminiKeyMasked=key.slice(0,8)+'...'+key.slice(-4);
+        $('#geminiKeyStatus').innerHTML=geminiKeyStatusHTML('valid',cfg.geminiKeyMasked);
+        $('#geminiKeyInput').value=cfg.geminiKeyMasked;
+        $('#geminiKeyClear').disabled=false;
+        await syncSettingsUp();
+      }else{
+        cfg.geminiKeyStatus='invalid';
+        cfg.geminiKeyMasked=key.slice(0,8)+'...'+key.slice(-4);
+        $('#geminiKeyStatus').innerHTML=geminiKeyStatusHTML('invalid',cfg.geminiKeyMasked);
+        $('#geminiKeyInput').value=cfg.geminiKeyMasked;
+      }
+    }catch(e){
+      cfg.geminiKeyStatus='invalid';
+      $('#geminiKeyStatus').innerHTML='<span style="color:var(--warn)">'+svgIcon("alert-triangle",14)+' Validation failed: '+e.message+'</span>';
+    }finally{
+      btn.disabled=false;btn.textContent='Validate & Save';
+    }
+  };
+  $('#geminiKeyClear').onclick=async()=>{
+    const btn=$('#geminiKeyClear');
+    btn.disabled=true;btn.textContent='Removing...';
+    try{
+      // Send empty key to clear (backend treats empty as delete)
+      await api('/api/settings/gemini-key',{method:'POST',body:JSON.stringify({key:''})});
+      cfg.geminiKeyStatus='none';
+      cfg.geminiKeyMasked='';
+      cfg.geminiPrivacy=false;
+      $('#geminiKeyInput').value='';
+      $('#geminiKeyStatus').innerHTML=geminiKeyStatusHTML('none','');
+      $('#geminiKeyClear').disabled=true;
+      $('#geminiPrivacyToggle').classList.remove('on');
+      await syncSettingsUp();
+    }catch(e){
+      $('#geminiKeyStatus').innerHTML='<span style="color:var(--warn)">'+svgIcon("alert-triangle",14)+' Failed to remove: '+e.message+'</span>';
+    }finally{
+      btn.disabled=false;btn.textContent='Remove';
+    }
+  };
+  // Mode selector chips
+  document.querySelectorAll('[data-mode]').forEach(chip=>{
+    chip.onclick=()=>{
+      const mode=chip.dataset.mode;
+      cfg.geminiMode=mode;
+      document.querySelectorAll('[data-mode]').forEach(c=>c.classList.toggle('on',c.dataset.mode===mode));
+      document.querySelectorAll('[name="geminiMode"]').forEach(r=>r.checked=r.value===mode);
+      $('#geminiModeHint').textContent=geminiModeHint(mode);
+      syncSettingsUp();
+      // Re-evaluate privacy mode availability
+      if(mode==='cloud'){$('#geminiPrivacyToggle').style.opacity='0.5';$('#geminiPrivacyToggle').style.pointerEvents='none';cfg.geminiPrivacy=false;$('#geminiPrivacyToggle').classList.remove('on');}
+      else{$('#geminiPrivacyToggle').style.opacity='';$('#geminiPrivacyToggle').style.pointerEvents='';}
+    };
+  });
+  // Voice picker
+  $('#geminiVoiceSel').onchange=()=>{cfg.geminiVoice=$('#geminiVoiceSel').value;syncSettingsUp();};
+  // Output target
+  $('#geminiOutputSel').onchange=()=>{cfg.geminiOutput=$('#geminiOutputSel').value;syncSettingsUp();};
+  // Privacy toggle
+  $('#geminiPrivacyToggle').onclick=function(){
+    if(this.style.pointerEvents==='none')return;
+    this.classList.toggle('on');
+    cfg.geminiPrivacy=this.classList.contains('on');
+    // If privacy mode on, force local mode
+    if(cfg.geminiPrivacy){
+      cfg.geminiMode='local';
+      document.querySelectorAll('[data-mode]').forEach(c=>c.classList.toggle('on',c.dataset.mode==='local'));
+      document.querySelectorAll('[name="geminiMode"]').forEach(r=>r.checked=r.value==='local');
+      $('#geminiModeHint').textContent=geminiModeHint('local');
+    }
+    syncSettingsUp();
   };
 }
-
 /* ---------- PWA install ---------- */
 let _deferredInstall=null;
 const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
