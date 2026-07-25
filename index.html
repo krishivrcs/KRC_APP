@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#0a0b10"/>
+<meta name="theme-color" content="#000000"/>
 <title>KRC</title>
 <link rel="manifest" href="./manifest.json"/>
 <link rel="icon" href="./icon-192.png"/>
@@ -11,7 +11,7 @@
 <style>
   :root{
     /* v2 Obsidian x Ember Gold — one warm accent on a deep neutral-obsidian ground */
-    --bg:#0a0b10; --bg2:#0e0f16;
+    --bg:#000000; --bg2:#0B0507;   /* owner 2026-07-25: TRUE black field */
     /* NOTE: canonical Ember-Gold accent tokens are --accent/--accent-2/--accent-glow.
        --violet/--blue/--cyan are legacy names from a prior palette, now kept ONLY as
        back-compat aliases pointing at the canonical tokens (identical values, zero visual
@@ -55,7 +55,7 @@
        them onto the canonical tokens so the WHOLE var-driven app reskins at once (spec: "swap =
        full reskin"). Mirrors 11_DESKTOP/ui/widget.html verbatim so PC + phone match. ===== */
     --nexus-core:#FF5A6E; --nexus-core-hot:#FF8A96; --nexus-accent:#FFB24C; --nexus-peak:#FFE6EA;
-    --nexus-bg0:#0A0608; --nexus-bg1:#150A0E; --nexus-struct:#3A1018; --nexus-struct2:#5C1926;
+    --nexus-bg0:#000000; --nexus-bg1:#120709; --nexus-struct:#3A1018; --nexus-struct2:#5C1926;
     --nexus-ink:#F3D9DD; --nexus-ink-dim:#BC8890; --nexus-ink-mut:#7C4C55;
   }
   /* body.nexus = "Nexus Sphere" identity on. One class swap recolours every var-driven surface
@@ -63,7 +63,7 @@
      Face engine swaps separately in JS (drawFace dispatcher reads getFaceMode()) — both flip live,
      no app refresh, which is the desktop bug ("changing the option did nothing") fixed at the source. */
   body.nexus{
-    --bg:#0A0608; --bg2:#150A0E;
+    --bg:#000000; --bg2:#120709;
     --accent:#FF5A6E; --accent-2:#FF8A96; --accent-glow:#FFB24C;
     --violet:var(--accent); --blue:var(--accent-glow); --cyan:var(--accent-2); --warm:#FF5A6E; --pink:#FF8A96;
     --grad:linear-gradient(135deg,var(--accent-2),var(--accent-glow));
@@ -1570,7 +1570,9 @@ function _renderFace(g,W,H,d,t){
    kspeak(), the mic ring, and the shared ambient beat drive the sphere with zero new wiring. */
 
 let _faceMode=null;
-function getFaceMode(){if(_faceMode)return _faceMode;try{_faceMode=localStorage.krcFaceMode||'taby';}catch(e){_faceMode='taby';}return _faceMode;}
+// Default 'nexus': the sphere is KRC's identity on every body (owner 2026-07-25). 'taby'
+// stays selectable in Settings. Key is shared with the PC app + floating head + Desk NVS.
+function getFaceMode(){if(_faceMode)return _faceMode;try{_faceMode=localStorage.krcFaceMode||'nexus';}catch(e){_faceMode='nexus';}return _faceMode;}
 function setFaceMode(mode){mode=(mode==='nexus')?'nexus':'taby';try{localStorage.krcFaceMode=mode;}catch(e){}_faceMode=mode;
   document.body.classList.toggle('nexus',mode==='nexus');                  // flip the whole Crimson reskin live
   if(mode!=='nexus'){const f=document.getElementById('face');
@@ -1615,7 +1617,14 @@ function drawNexus(now,cv){
   const cs=FACE.speaking?'speaking':FACE.listening?'listening':(FACE.emo==='thinking'?'thinking':'idle');
   if(cs!==_NX.lastState){_NX.lastState=cs;_NX.kick=1.0;}
   const cx=W/2,cy=H*0.42,R=Math.min(W,H)*(H>200?0.30:0.44);
-  const spin=cs==='thinking'?0.7:cs==='listening'?0.15:0.32;const breath=1+0.02*Math.sin(t*1.2)+_NX.kick*0.07;
+  // Spin + breath are THE SAME NUMBERS as STATE{} in 11_DESKTOP/ui/js/nexus-sphere.js, so the
+  // phone, the PC deck, the floating head and the Desk all animate identically. Speaking used
+  // to fall through to the idle spin (0.32) with no voice pulse at all, so the one state the
+  // owner actually watches was the one that looked dead. If you change these, change all four.
+  //   idle .30 | listening .15 | thinking .70 | speaking .45 (+0.06 breath @ 7 Hz)
+  const spin=cs==='thinking'?0.70:cs==='listening'?0.15:cs==='speaking'?0.45:0.30;
+  let breath=1+0.02*Math.sin(t*1.2*2*Math.PI)+_NX.kick*0.07;   // breathFreq is in Hz, as on the PC
+  if(cs==='speaking')breath+=0.06*Math.abs(Math.sin(t*7.0));
   const ay=t*spin+_NX.mx*0.6,ax=-0.32+0.05*Math.sin(t*0.6);
   ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(cx,cy);
   ctx.globalCompositeOperation='lighter';const sw=t*0.55%_NX.TAU;ctx.rotate(sw);
@@ -1688,8 +1697,8 @@ async function enablePush(){
 async function testPush(){try{const r=await api('/api/push/test');pushStatus(r.sent?('Sent — check your notifications.'):'No subscribed devices yet — tap “Enable” first.');}catch(e){pushStatus('⚠ '+e.message);}}
 
 /* ---------- settings sync ---------- */
-async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if('geminiMode'in s)cfg.geminiMode=s.geminiMode;if('geminiVoice'in s)cfg.geminiVoice=s.geminiVoice;if('geminiOutput'in s)cfg.geminiOutput=s.geminiOutput;if('geminiPrivacy'in s)cfg.geminiPrivacy=!!s.geminiPrivacy;if('geminiKeyStatus'in s)cfg.geminiKeyStatus=s.geminiKeyStatus;if('geminiKeyMasked'in s)cfg.geminiKeyMasked=s.geminiKeyMasked;if(view==='profile')renderProfile();}catch(e){}}
-async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||'',geminiMode:cfg.geminiMode||'auto',geminiVoice:cfg.geminiVoice||'Aoede',geminiOutput:cfg.geminiOutput||'desk',geminiPrivacy:cfg.geminiPrivacy||false,geminiKeyStatus:cfg.geminiKeyStatus||'none',geminiKeyMasked:cfg.geminiKeyMasked||''}})});return true;}catch(e){return false;}}
+async function syncSettingsDown(){if(!cfg.token)return;try{const d=await api('/api/settings');const s=d.settings||{};if('speak'in s)cfg.speak=!!s.speak;if('eleven'in s)cfg.eleven=!!s.eleven;if(s.voice)localStorage.krcVoice=s.voice;if('geminiMode'in s)cfg.geminiMode=s.geminiMode;if('geminiVoice'in s)cfg.geminiVoice=s.geminiVoice;if('geminiOutput'in s)cfg.geminiOutput=s.geminiOutput;if('geminiPrivacy'in s)cfg.geminiPrivacy=!!s.geminiPrivacy;if('geminiKeyStatus'in s)cfg.geminiKeyStatus=s.geminiKeyStatus;if('geminiKeyMasked'in s)cfg.geminiKeyMasked=s.geminiKeyMasked;if(s.faceMode){localStorage.krcFaceMode=s.faceMode;setFaceMode(s.faceMode);}if(view==='profile')renderProfile();}catch(e){}}
+async function syncSettingsUp(){if(!cfg.token)return false;try{await api('/api/settings',{method:'POST',body:JSON.stringify({settings:{speak:cfg.speak,eleven:cfg.eleven,voice:localStorage.krcVoice||'',geminiMode:cfg.geminiMode||'auto',geminiVoice:cfg.geminiVoice||'Aoede',geminiOutput:cfg.geminiOutput||'desk',geminiPrivacy:cfg.geminiPrivacy||false,geminiKeyStatus:cfg.geminiKeyStatus||'none',geminiKeyMasked:cfg.geminiKeyMasked||'',faceMode:localStorage.krcFaceMode||'taby'}})});return true;}catch(e){return false;}}
 
 /* ---------- LISTS: hub of 4 cards → separate full pages ---------- */
 // A phone bottom bar can't hold Tasks/Reminders/Notes/Goals as top-level tabs, so "Lists" is a hub:
