@@ -319,6 +319,163 @@
   nav button.on .nb{transform:translateY(-1px)}
 
   .hide{display:none !important}
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     COMMAND DECK — the phone's share of the identity (owner 2026-07-25).
+
+     Additive OVERRIDE block, deliberately last in the stylesheet. The phone is a
+     2000-line single file with no build step; rewriting its base CSS in place would
+     be a large blind change to every view at once. Restyling the shared component
+     classes here means Home, Chat, Meet, Lists, Brain and Profile all pick up the
+     deck language from one place, and the whole thing reverts by deleting this block.
+
+     A phone is NOT a 3x3 desktop grid — the deck reads vertically here: status pill
+     and clock on top, sphere hero, then stacked HUD panels, then the tab rail.
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* ---- chrome: status pill + live clock, mirroring the PC top bar ---- */
+  header{
+    display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
+    background:linear-gradient(180deg,#0B0507,#000);
+    border-bottom:1px solid var(--nexus-struct,#3A1018);
+  }
+  header .logo{
+    font-family:var(--brand,inherit);font-weight:600;
+    font-size:20px;letter-spacing:.22em;
+    background:none;-webkit-text-fill-color:currentColor;color:#fff;
+    text-shadow:0 0 18px rgba(255,90,110,.55);
+  }
+  header .sub{
+    font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--nexus-ink-mut,#7C4C55);
+  }
+  #hclock{
+    margin-left:auto;text-align:right;line-height:1.05;
+  }
+  #hclock b{
+    display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    font-size:19px;font-weight:600;letter-spacing:.06em;
+    color:var(--nexus-core,#FF5A6E);text-shadow:0 0 16px rgba(255,90,110,.5);
+    font-variant-numeric:tabular-nums;
+  }
+  #hclock span{
+    display:block;font-size:8px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--nexus-ink-mut,#7C4C55);margin-top:2px;
+  }
+  /* the angled SYSTEM STATUS pill, shrunk to a phone-sized chip */
+  #sysPill{
+    display:flex;align-items:center;gap:6px;height:24px;padding:0 16px 0 9px;
+    background:linear-gradient(100deg,rgba(196,30,58,.22),rgba(196,30,58,.05));
+    border:1px solid var(--nexus-struct2,#5C1926);
+    clip-path:polygon(0 0,100% 0,calc(100% - 9px) 100%,0 100%);
+    font-size:8px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--nexus-ink-dim,#BC8890);white-space:nowrap;
+  }
+  #sysPill b{color:var(--nexus-core,#FF5A6E);font-weight:600}
+  header .status-dot{width:7px;height:7px;border-radius:50%;flex:none}
+
+  /* ---- HUD panel: the deck's core surface, applied to every existing card ---- */
+  .card,.brief-card{
+    position:relative;
+    background:linear-gradient(180deg,#120709,#050203) !important;
+    background-image:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border-radius:10px !important;
+    box-shadow:inset 0 1px 0 rgba(255,120,140,.06) !important;
+  }
+  /* section headings become panel headers */
+  .sec{
+    font-size:10.5px !important;letter-spacing:.19em !important;text-transform:uppercase !important;
+    color:#fff !important;font-weight:600 !important;
+    margin:20px 2px 8px !important;
+    text-shadow:0 0 14px rgba(255,90,110,.35);
+    display:flex;align-items:center;gap:8px;
+  }
+  .sec::before{
+    content:"";width:4px;height:4px;border-radius:50%;flex:none;
+    background:var(--nexus-core,#FF5A6E);box-shadow:0 0 7px var(--nexus-core,#FF5A6E);
+  }
+  .brief-h{
+    font-size:10px;letter-spacing:.17em;text-transform:uppercase;
+    color:var(--nexus-ink-dim,#BC8890);font-weight:600;
+  }
+
+  /* ---- sphere hero: a real HUD panel with corner tags, like the deck ---- */
+  .home-face{
+    position:relative;margin:12px 0 4px !important;
+    background:radial-gradient(circle at 50% 45%,#12070A,#000 72%);
+    border:1px solid var(--nexus-struct,#3A1018);border-radius:12px;
+    overflow:hidden;padding:6px 0;
+  }
+  .home-face::before,.home-face::after{
+    content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+    border:1px solid rgba(230,62,90,.5);
+  }
+  .home-face::before{top:8px;left:8px;border-right:0;border-bottom:0}
+  .home-face::after{bottom:8px;right:8px;border-left:0;border-top:0}
+  #heroTag{
+    position:absolute;top:8px;right:10px;text-align:right;pointer-events:none;
+    font-size:7.5px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--nexus-ink-mut,#7C4C55);line-height:1.5;
+  }
+  #heroTag b{display:block;color:var(--nexus-ink,#F3D9DD)}
+  #heroState{
+    position:absolute;left:0;right:0;bottom:8px;text-align:center;pointer-events:none;
+    font-size:9px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--nexus-ink-dim,#BC8890);
+    text-shadow:0 0 14px rgba(255,90,110,.45);
+  }
+
+  /* ---- fleet tiles read as the deck's Active Agents ---- */
+  .dev{
+    background:#12070A !important;
+    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border-radius:9px !important;
+  }
+  .dev.on{border-color:rgba(230,62,90,.45) !important}
+
+  /* ---- tab rail ---- */
+  #nav{
+    background:linear-gradient(180deg,#000,#0B0507) !important;
+    border-top:1px solid var(--nexus-struct,#3A1018) !important;
+    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  }
+  #nav button{position:relative;color:var(--nexus-ink-mut,#7C4C55)}
+  #nav button.on{color:#fff}
+  #nav button.on .nb svg{filter:drop-shadow(0 0 6px rgba(255,90,110,.75))}
+  #nav button.on::before{
+    content:"";position:absolute;top:0;left:22%;right:22%;height:2px;border-radius:0 0 2px 2px;
+    background:var(--nexus-core,#FF5A6E);box-shadow:0 0 9px 1px rgba(196,30,58,.75);
+  }
+
+  /* ---- chips + composer pick up the deck's crimson ---- */
+  .chip{
+    background:#12070A !important;
+    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border-radius:9px !important;
+  }
+  .chip .ci{color:var(--nexus-core,#FF5A6E)}
+  .composer{
+    background:linear-gradient(180deg,#0B0507,#000) !important;
+    border-top:1px solid var(--nexus-struct,#3A1018) !important;
+    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  }
+
+  /* ---- the primary gradient was still Ember-Gold ----
+     body.nexus set --grad to (--accent-2 -> --accent-glow), and --accent-glow is #FFB24C
+     amber. So the + button, the active tab pill, primary buttons and your own chat bubbles
+     all still rendered amber while everything around them was crimson — the single most
+     off-identity thing left on the phone. Crimson to match the PC deck. The grad-backed
+     elements hardcode color:#0a0c18 (dark text, chosen for a light amber fill); on crimson
+     that is unreadable, so they take white here. */
+  body.nexus{ --grad:linear-gradient(135deg,#C41E3A,#FF5A6E) !important; }
+  body.nexus .big-btn,body.nexus .add,body.nexus .chip.on,body.nexus .pill-btn.primary,
+  body.nexus .msg.you,body.nexus .composer .cbtn,body.nexus .seg button.on{color:#fff !important}
+
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  }
 </style>
 </head>
 <body>
@@ -331,9 +488,10 @@
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
-    <span class="logo grad-txt brandfont">KRC</span>
+    <span class="logo brandfont">KRC</span>
     <span class="sub" id="hsub">companion</span>
-    <span class="status-dot" id="dot"></span>
+    <span id="sysPill"><span class="status-dot" id="dot"></span><b id="sysTxt">Standby</b></span>
+    <span id="hclock"><b id="hTime">--:--</b><span id="hDate">—</span></span>
   </header>
   <div id="offlineBar">⚠ You're offline — reconnect to talk to KRC.</div>
   <main id="main"></main>
@@ -506,7 +664,30 @@ async function api(path,opts={}){
 // bypass api() — nothing here may hang forever on a Render cold start or a dead network.
 function fetchT(url,opts,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);return fetch(url,Object.assign({},opts,{signal:c.signal})).finally(()=>clearTimeout(t));}
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function setDot(on){const d=$('#dot');if(d)d.classList.toggle('on',!!on);}
+function setDot(on){
+  const d=$('#dot');if(d)d.classList.toggle('on',!!on);
+  // The status pill states in words what the dot states in colour — same fact, one source.
+  const t=$('#sysTxt');
+  if(t){t.textContent=on?'Optimal':'Offline';t.style.color=on?'var(--nexus-core,#FF5A6E)':'var(--nexus-ink-mut,#7C4C55)';}
+}
+
+/* ---- command-deck chrome: live clock + the sphere's state, echoed under the hero ----
+   Runs on one 1s interval rather than per-frame: none of this changes faster than a second,
+   and the phone is the most battery-sensitive body in the fleet. */
+const _DECK_SUB={idle:'wake word armed — tap to talk',listening:'listening…',
+                 thinking:'thinking…',speaking:'speaking'};
+function deckTick(){
+  const n=new Date(),p=v=>String(v).padStart(2,'0');
+  const T=$('#hTime'); if(T)T.textContent=p(n.getHours())+':'+p(n.getMinutes());
+  const D=$('#hDate'); if(D)D.textContent=n.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+  // _NX.lastState is what drawNexus() is actually animating, so the caption can never
+  // disagree with the sphere.
+  const st=(typeof _NX!=='undefined'&&_NX.lastState)?_NX.lastState:'idle';
+  const S=$('#heroSt');    if(S)S.textContent=st.toUpperCase();
+  const H=$('#heroState'); if(H)H.textContent=_DECK_SUB[st]||_DECK_SUB.idle;
+}
+setInterval(deckTick,1000);
+document.addEventListener('DOMContentLoaded',deckTick);
 function kspeak(t){if(cfg.speak&&t)speak(t);}
 // Monochrome stroke-SVG icon set — matches the nav/chip icons already in the shell. Used to replace
 // raw OS emoji across the app (see item 5 of the icon pass) so the surface reads as one cohesive
@@ -779,7 +960,11 @@ function renderFocus(){
 async function renderHome(){
   const main=$('#main');
   main.innerHTML=`
-    <div class="home-face" onclick="show('chat')" title="Tap to talk"><canvas id="face" width="360" height="210"></canvas></div>
+    <div class="home-face" onclick="show('chat')" title="Tap to talk">
+      <canvas id="face" width="360" height="210"></canvas>
+      <div id="heroTag">nodes <b>162</b>state <b id="heroSt">IDLE</b></div>
+      <div id="heroState">wake word armed — tap to talk</div>
+    </div>
     <div class="home-greet"><b id="hi">Hi! I'm KRC.</b><p id="hi2">Tap the face to chat, or add something below.</p></div>
     <div class="card brief-card" id="briefCard" onclick="goDailyBrief()">
       <div class="brief-h">${svgIcon('sparkle',15)}Daily brief</div>
