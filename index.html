@@ -40,6 +40,10 @@
     --e-ember-hi:0 8px 34px rgba(255,142,43,.44);
     --ember-06:rgba(255,180,62,.06); --ember-12:rgba(255,180,62,.12);
     --ember-22:rgba(255,180,62,.22); --ember-40:rgba(255,180,62,.40);
+    /* accent-tinted text glow — follows the identity (Ember-Gold here, Crimson under body.nexus).
+       Used by the wordmark, section heads, sphere HUD caption and active nav icon so the "signature
+       glow" always matches the active face instead of leaking crimson onto the gold Taby skin. */
+    --glow-strong:rgba(255,142,43,.50); --glow-soft:rgba(255,180,62,.32); --glow-hud:rgba(255,180,62,.42);
     --ease-fluid:cubic-bezier(.22,1,.36,1);              /* decelerate, liquid settle */
     --ease-glass:cubic-bezier(.4,0,.2,1);
     --t-micro:180ms;                                     /* hover / press feedback */
@@ -57,6 +61,14 @@
     --nexus-core:#FF5A6E; --nexus-core-hot:#FF8A96; --nexus-accent:#FFB24C; --nexus-peak:#FFE6EA;
     --nexus-bg0:#000000; --nexus-bg1:#120709; --nexus-struct:#3A1018; --nexus-struct2:#5C1926;
     --nexus-ink:#F3D9DD; --nexus-ink-dim:#BC8890; --nexus-ink-mut:#7C4C55;
+    /* ===== Chrome tokens — the HUD shell (header, sysPill, hero HUD, nav, chips) reads THESE,
+       never --nexus-* directly, so the shell recolours with the active face. Ember-Gold values
+       here (default/Taby); body.nexus repoints them to the Crimson --nexus-* set. This is what
+       makes Taby mode fully gold instead of leaking the crimson deck palette. ===== */
+    --chrome-core:var(--accent); --chrome-ink:var(--txt); --chrome-ink-dim:var(--dim);
+    --chrome-ink-mut:var(--faint); --chrome-struct:var(--line); --chrome-struct2:var(--line2);
+    --chrome-wash:linear-gradient(100deg,rgba(255,142,43,.16),rgba(255,142,43,.04));
+    --chrome-core-glow:rgba(255,142,43,.55);
   }
   /* body.nexus = "Nexus Sphere" identity on. One class swap recolours every var-driven surface
      (buttons, chips, header, cards) to Crimson; defaults remain Ember-Gold Taby when it's off.
@@ -74,6 +86,12 @@
     --ember-06:rgba(255,90,110,.06); --ember-12:rgba(255,90,110,.12);
     --ember-22:rgba(255,90,110,.22); --ember-40:rgba(255,90,110,.40);
     --e-ember:0 6px 26px rgba(255,90,110,.30); --e-ember-hi:0 8px 34px rgba(255,90,110,.44);
+    --glow-strong:rgba(255,90,110,.55); --glow-soft:rgba(255,90,110,.35); --glow-hud:rgba(255,90,110,.45);
+    /* Crimson deck palette for the HUD shell (see --chrome-* in :root). */
+    --chrome-core:var(--nexus-core); --chrome-ink:var(--nexus-ink); --chrome-ink-dim:var(--nexus-ink-dim);
+    --chrome-ink-mut:var(--nexus-ink-mut); --chrome-struct:var(--nexus-struct); --chrome-struct2:var(--nexus-struct2);
+    --chrome-wash:linear-gradient(100deg,rgba(196,30,58,.22),rgba(196,30,58,.05));
+    --chrome-core-glow:rgba(255,90,110,.55);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   html,body{height:100%}
@@ -129,6 +147,11 @@
   .orb .eye{width:17px;height:34px;border-radius:10px;background:#1a1206;box-shadow:0 0 10px rgba(255,180,62,.6);animation:blink 5s infinite}
   @keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
   .orb.small{width:74px;height:74px}.orb.small .eye{width:9px;height:18px;gap:0}.orb.small .eyes{gap:12px}
+  /* The onboarding/hero orb mirrors the active identity so the first screen matches Home:
+     gold Taby planet by default, crimson core under body.nexus (no canvas needed pre-boot). */
+  body.nexus .orb .ball{background:
+      radial-gradient(circle at 38% 32%, #FFD0D6 0%, #FF5A6E 40%, #C41E3A 74%, #3A0910 100%)}
+  body.nexus .orb .eye{background:#22090d;box-shadow:0 0 12px rgba(255,90,110,.7)}
 
   .feat{display:flex;align-items:flex-start;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
   .feat:last-child{border-bottom:0}
@@ -338,17 +361,17 @@
     display:flex;align-items:center;gap:10px;
     padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
     background:linear-gradient(180deg,#0B0507,#000);
-    border-bottom:1px solid var(--nexus-struct,#3A1018);
+    border-bottom:1px solid var(--chrome-struct);
   }
   header .logo{
     font-family:var(--brand,inherit);font-weight:600;
     font-size:20px;letter-spacing:.22em;
     background:none;-webkit-text-fill-color:currentColor;color:#fff;
-    text-shadow:0 0 18px rgba(255,90,110,.55);
+    text-shadow:0 0 18px var(--glow-strong);
   }
   header .sub{
     font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;
-    color:var(--nexus-ink-mut,#7C4C55);
+    color:var(--chrome-ink-mut);
   }
   #hclock{
     margin-left:auto;text-align:right;line-height:1.05;
@@ -356,23 +379,23 @@
   #hclock b{
     display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;
     font-size:19px;font-weight:600;letter-spacing:.06em;
-    color:var(--nexus-core,#FF5A6E);text-shadow:0 0 16px rgba(255,90,110,.5);
+    color:var(--chrome-core);text-shadow:0 0 16px var(--chrome-core-glow);
     font-variant-numeric:tabular-nums;
   }
   #hclock span{
     display:block;font-size:8px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--nexus-ink-mut,#7C4C55);margin-top:2px;
+    color:var(--chrome-ink-mut);margin-top:2px;
   }
   /* the angled SYSTEM STATUS pill, shrunk to a phone-sized chip */
   #sysPill{
     display:flex;align-items:center;gap:6px;height:24px;padding:0 16px 0 9px;
-    background:linear-gradient(100deg,rgba(196,30,58,.22),rgba(196,30,58,.05));
-    border:1px solid var(--nexus-struct2,#5C1926);
+    background:var(--chrome-wash);
+    border:1px solid var(--chrome-struct2);
     clip-path:polygon(0 0,100% 0,calc(100% - 9px) 100%,0 100%);
     font-size:8px;letter-spacing:.15em;text-transform:uppercase;
-    color:var(--nexus-ink-dim,#BC8890);white-space:nowrap;
+    color:var(--chrome-ink-dim);white-space:nowrap;
   }
-  #sysPill b{color:var(--nexus-core,#FF5A6E);font-weight:600}
+  #sysPill b{color:var(--chrome-core);font-weight:600}
   header .status-dot{width:7px;height:7px;border-radius:50%;flex:none}
 
   /* ---- HUD panel: the deck's core surface, applied to every existing card ---- */
@@ -380,7 +403,7 @@
     position:relative;
     background:linear-gradient(180deg,#120709,#050203) !important;
     background-image:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
-    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border:1px solid var(--chrome-struct) !important;
     border-radius:10px !important;
     box-shadow:inset 0 1px 0 rgba(255,120,140,.06) !important;
   }
@@ -389,23 +412,23 @@
     font-size:10.5px !important;letter-spacing:.19em !important;text-transform:uppercase !important;
     color:#fff !important;font-weight:600 !important;
     margin:20px 2px 8px !important;
-    text-shadow:0 0 14px rgba(255,90,110,.35);
+    text-shadow:0 0 14px var(--glow-soft);
     display:flex;align-items:center;gap:8px;
   }
   .sec::before{
     content:"";width:4px;height:4px;border-radius:50%;flex:none;
-    background:var(--nexus-core,#FF5A6E);box-shadow:0 0 7px var(--nexus-core,#FF5A6E);
+    background:var(--chrome-core);box-shadow:0 0 7px var(--chrome-core);
   }
   .brief-h{
     font-size:10px;letter-spacing:.17em;text-transform:uppercase;
-    color:var(--nexus-ink-dim,#BC8890);font-weight:600;
+    color:var(--chrome-ink-dim);font-weight:600;
   }
 
   /* ---- sphere hero: a real HUD panel with corner tags, like the deck ---- */
   .home-face{
     position:relative;margin:12px 0 4px !important;
     background:radial-gradient(circle at 50% 45%,#12070A,#000 72%);
-    border:1px solid var(--nexus-struct,#3A1018);border-radius:12px;
+    border:1px solid var(--chrome-struct);border-radius:12px;
     overflow:hidden;padding:6px 0;
   }
   .home-face::before,.home-face::after{
@@ -417,20 +440,20 @@
   #heroTag{
     position:absolute;top:8px;right:10px;text-align:right;pointer-events:none;
     font-size:7.5px;letter-spacing:.15em;text-transform:uppercase;
-    color:var(--nexus-ink-mut,#7C4C55);line-height:1.5;
+    color:var(--chrome-ink-mut);line-height:1.5;
   }
-  #heroTag b{display:block;color:var(--nexus-ink,#F3D9DD)}
+  #heroTag b{display:block;color:var(--chrome-ink)}
   #heroState{
     position:absolute;left:0;right:0;bottom:8px;text-align:center;pointer-events:none;
     font-size:9px;letter-spacing:.28em;text-transform:uppercase;
-    color:var(--nexus-ink-dim,#BC8890);
-    text-shadow:0 0 14px rgba(255,90,110,.45);
+    color:var(--chrome-ink-dim);
+    text-shadow:0 0 14px var(--glow-hud);
   }
 
   /* ---- fleet tiles read as the deck's Active Agents ---- */
   .dev{
     background:#12070A !important;
-    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border:1px solid var(--chrome-struct) !important;
     border-radius:9px !important;
   }
   .dev.on{border-color:rgba(230,62,90,.45) !important}
@@ -438,27 +461,27 @@
   /* ---- tab rail ---- */
   #nav{
     background:linear-gradient(180deg,#000,#0B0507) !important;
-    border-top:1px solid var(--nexus-struct,#3A1018) !important;
+    border-top:1px solid var(--chrome-struct) !important;
     backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
   }
-  #nav button{position:relative;color:var(--nexus-ink-mut,#7C4C55)}
+  #nav button{position:relative;color:var(--chrome-ink-mut)}
   #nav button.on{color:#fff}
-  #nav button.on .nb svg{filter:drop-shadow(0 0 6px rgba(255,90,110,.75))}
+  #nav button.on .nb svg{filter:drop-shadow(0 0 6px var(--glow-strong))}
   #nav button.on::before{
     content:"";position:absolute;top:0;left:22%;right:22%;height:2px;border-radius:0 0 2px 2px;
-    background:var(--nexus-core,#FF5A6E);box-shadow:0 0 9px 1px rgba(196,30,58,.75);
+    background:var(--chrome-core);box-shadow:0 0 9px 1px var(--chrome-core-glow);
   }
 
   /* ---- chips + composer pick up the deck's crimson ---- */
   .chip{
     background:#12070A !important;
-    border:1px solid var(--nexus-struct,#3A1018) !important;
+    border:1px solid var(--chrome-struct) !important;
     border-radius:9px !important;
   }
-  .chip .ci{color:var(--nexus-core,#FF5A6E)}
+  .chip .ci{color:var(--chrome-core)}
   .composer{
     background:linear-gradient(180deg,#0B0507,#000) !important;
-    border-top:1px solid var(--nexus-struct,#3A1018) !important;
+    border-top:1px solid var(--chrome-struct) !important;
     backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
   }
 
@@ -668,7 +691,7 @@ function setDot(on){
   const d=$('#dot');if(d)d.classList.toggle('on',!!on);
   // The status pill states in words what the dot states in colour — same fact, one source.
   const t=$('#sysTxt');
-  if(t){t.textContent=on?'Optimal':'Offline';t.style.color=on?'var(--nexus-core,#FF5A6E)':'var(--nexus-ink-mut,#7C4C55)';}
+  if(t){t.textContent=on?'Optimal':'Offline';t.style.color=on?'var(--chrome-core)':'var(--chrome-ink-mut)';}
 }
 
 /* ---- command-deck chrome: live clock + the sphere's state, echoed under the hero ----
