@@ -2183,7 +2183,8 @@ function renderProfile(){
       if(ps)ps.textContent=(st.online?'Online':'Offline')+(st.bridge_busy?' · Bridge busy':'')+(st.guardian&&st.guardian.armed?' · Guardian on':'');
       if(sa){
         const sp=st.spend||{}, aec=st.aec||{};
-        sa.textContent='AEC: '+(aec.ok?'active':'unavailable')+' · Spend ₹'+(sp.inr_today??0)+' / ₹'+(sp.cap??100);
+        sa.textContent='AEC: '+(aec.ok?'active':'unavailable')+' · Spend ₹'+(sp.inr_today??0)+' / ₹'+(sp.cap??100)
+          +(st.memory?' · Mem '+(st.memory.backend||'local')+' ('+(st.memory.facts??0)+' facts)':'');
       }
       if(gb){
         const armed=!!(st.guardian&&st.guardian.armed);
