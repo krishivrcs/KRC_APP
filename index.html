@@ -1257,6 +1257,9 @@ function renderPC(){
       <div class="htxt"><b id="pcName">Checking…</b><p id="pcSub">KRC runs your PC like Jarvis — from any device.</p></div>
       <span class="status-dot" id="pcDot" style="margin-left:auto"></span>
     </div>
+    <div class="chips" style="margin:8px 0 4px">
+      <button class="chip" id="pcGuardian">Guardian: …</button>
+    </div>
     <h2 class="sec">Live screen</h2>
     <div class="card" style="padding:10px">
       <div id="pcShotWrap" style="position:relative;border-radius:12px;overflow:hidden;background:#05070f;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center">
@@ -1286,6 +1289,14 @@ function renderPC(){
   as.onclick=goAns;ai.addEventListener('keydown',e=>{if(e.key==='Enter')goAns();});
   const li=$('#pcLiveShot');if(li)li.onclick=function(){if(this.src)window.open(this.src,'_blank');};
   pcStatus();
+  const gBtn=$('#pcGuardian');
+  if(gBtn) gBtn.onclick=async()=>{
+    const on=gBtn.dataset.armed==='1';
+    gBtn.textContent='…';
+    try{ await api('/krc',{method:'POST',body:JSON.stringify({message:on?'guardian off':'guardian on'})}); }
+    catch(e){}
+    pcStatus();
+  };
   if(pcAutoShot){pcAutoShot=false;pcRefreshShot();}
 }
 let pcAutoShot=false;
@@ -1326,11 +1337,26 @@ async function pcAnswer(text){
 async function pcStatus(){
   const nm=$('#pcName'),sub=$('#pcSub'),dot=$('#pcDot');
   if(!cfg.token){if(nm)nm.textContent='Not connected';if(sub)sub.textContent='Connect KRC in You → Setup first.';return;}
-  try{const h=await api('/api/health');setDot(true);const on=!!(h.devices&&h.devices.pc&&h.devices.pc.online);
+  try{
+    const h=await api('/api/health');setDot(true);
+    let st=null; try{ st=await api('/api/pc/status'); }catch(e){ st=null; }
+    const on=!!(h.devices&&h.devices.pc&&h.devices.pc.online) || !!(st&&st.online);
     if(dot)dot.classList.toggle('on',on);
     if(nm)nm.textContent=on?'PC connected ✓':'PC offline';
-    const pcTitle=h.devices&&h.devices.pc&&h.devices.pc.title;
-    if(sub)sub.textContent=on?(pcTitle?('Active: '+pcTitle):'Ready for your commands.'):'Open KRC on your PC (the desktop agent) to control it from here.';
+    const bits=[];
+    const pcTitle=(st&&st.title) || (h.devices&&h.devices.pc&&h.devices.pc.title);
+    if(on&&pcTitle) bits.push('Active: '+pcTitle);
+    if(st&&st.bridge_busy) bits.push('Bridge busy');
+    if(st&&st.guardian&&st.guardian.armed) bits.push('Guardian armed');
+    if(st&&st.guardian&&st.guardian.counting) bits.push('Locking in '+(st.guardian.countdown||'?')+'s');
+    if(st&&st.aec&&st.aec.ok) bits.push('AEC on');
+    if(sub)sub.textContent=on?(bits.join(' · ')||'Ready for your commands.'):'Open KRC on your PC (the desktop agent) to control it from here.';
+    const gBtn=$('#pcGuardian');
+    if(gBtn){
+      const armed=!!(st&&st.guardian&&st.guardian.armed);
+      gBtn.textContent=armed?'Guardian: On':'Guardian: Off';
+      gBtn.dataset.armed=armed?'1':'0';
+    }
   }catch(e){setDot(false);if(nm)nm.textContent='Offline';if(sub)sub.textContent='Couldn’t reach KRC — check You → Setup.';}
 }
 function pcCard(html){const out=$('#pcOut');if(!out)return null;const c=document.createElement('div');c.className='msg krc';c.style.maxWidth='100%';c.style.marginTop='0';c.innerHTML=html;out.insertBefore(c,out.firstChild);return c;}
@@ -2110,6 +2136,17 @@ function renderProfile(){
       </div></div>
     </div>
 
+    <h2 class="sec">PC safety (JARVIS port)</h2>
+    <div class="set-group">
+      <div class="set-item"><span class="si">${svgIcon('monitor',18)}</span>
+        <div class="sg"><b>PC status</b><p id="profPcStatus">Checking…</p></div>
+        <button class="pill-btn" id="profGuardian">Guardian</button>
+      </div>
+      <div class="set-item"><span class="si">${svgIcon('mic',18)}</span>
+        <div class="sg"><b>Echo cancel / spend</b><p id="profSpendAec">—</p></div>
+      </div>
+    </div>
+
     <h2 class="sec">App</h2>
     <div class="set-group">
       <div class="set-item" id="installRow"><span class="si"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></span><div class="sg"><b>Install KRC as an app</b><p id="installHintP">Add to your home screen</p></div></div>
@@ -2138,6 +2175,29 @@ function renderProfile(){
   // the dispatcher reads getFaceMode() every frame, so setFaceMode() alone flips both the Crimson
   // skin (body.nexus) and the engine. Re-seed so the face is already alive when they go look.
   const fms=$('#faceModeSel');if(fms)fms.onchange=function(){setFaceMode(this.value);};
+  (async()=>{
+    const ps=$('#profPcStatus'), sa=$('#profSpendAec'), gb=$('#profGuardian');
+    if(!cfg.token){ if(ps)ps.textContent='Pair first'; return; }
+    try{
+      const st=await api('/api/pc/status');
+      if(ps)ps.textContent=(st.online?'Online':'Offline')+(st.bridge_busy?' · Bridge busy':'')+(st.guardian&&st.guardian.armed?' · Guardian on':'');
+      if(sa){
+        const sp=st.spend||{}, aec=st.aec||{};
+        sa.textContent='AEC: '+(aec.ok?'active':'unavailable')+' · Spend ₹'+(sp.inr_today??0)+' / ₹'+(sp.cap??100);
+      }
+      if(gb){
+        const armed=!!(st.guardian&&st.guardian.armed);
+        gb.textContent=armed?'On':'Off';
+        gb.dataset.armed=armed?'1':'0';
+        gb.onclick=async()=>{
+          const on=gb.dataset.armed==='1';
+          gb.textContent='…';
+          try{ await api('/krc',{method:'POST',body:JSON.stringify({message:on?'guardian off':'guardian on'})}); }catch(e){}
+          renderProfile();
+        };
+      }
+    }catch(e){ if(ps)ps.textContent='Couldn’t reach PC status'; }
+  })();
   $('#installHintP').textContent=installHint();
   $('#installRow').onclick=async()=>{if(!(await installApp()))$('#installHintP').textContent=installHint();};
   $('#setupRow').onclick=startOnboarding;
